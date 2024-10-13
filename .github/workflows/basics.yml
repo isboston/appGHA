@@ -8,11 +8,11 @@ name: my-github-actions
 on:
   push:
     branches:
-      -main
+      - main
   
 jobs:
 
-  test:
+  testing:
     runs-on: ubuntu-latest
     
     steps:
