@@ -60,7 +60,7 @@ jobs:
       run : aws --version
       
     - name: Lets test some packages if they are here 2
-      run : zip --verison
+      run : zip
       
 
       
