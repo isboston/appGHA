@@ -17,6 +17,7 @@ on:
   
 jobs:
 
+
   testing:
     runs-on: ubuntu-latest
 
@@ -30,7 +31,7 @@ jobs:
         echo "Hello Message2"
         echo "Application name: ${{ env.APPLICATION_NAME }}"
     - name: List current folder
-      run : ll
+      run : ls -la
         
 
   deploy:
