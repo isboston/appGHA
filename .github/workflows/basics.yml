@@ -54,13 +54,16 @@ jobs:
           LOCAL_VAR: "This is Super local Environment variable"
       
       - name: Print Deployment package
-        run: echo "Deploy package name is ${{ 8env.DEPLOY_PACKAGE_NAME }}"
+        run: echo "Deploy package name is ${{ env.DEPLOY_PACKAGE_NAME }}"
 
       - name: Test if AWS CLI is installed
         run: aws --version
       
       - name: Test if zip is installed
         run: zip --version
+
+      - name: Simulate failure
+        run: exit 1
 
   telegram-notification:
     if: failure()
