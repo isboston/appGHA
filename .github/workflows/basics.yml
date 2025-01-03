@@ -1,74 +1,77 @@
-#-----------------------------
-#
-#
-#----------------------------
 name: my-github-actions
 env:
-  APPLICATION_NAME   : "MyFlask"
+  APPLICATION_NAME: "MyFlask"
   DEPLOY_PACKAGE_NAME: "flask-deploy-ver-${{ github.sha }}"
 
-  
 on:
   push:
     branches:
       - main
-  
+
 jobs:
-
-
   testing:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Print Hello Message
-      run : echo "Hello world from Testing job"
-    
-    - name: Execude few commands
-      run : |
-        echo "Hello Message1"
-        echo "Hello Message2"
-        echo "Application name: ${{ env.APPLICATION_NAME }}"
+      - name: Print Hello Message
+        run: echo "Hello world from Testing job"
+      
+      - name: Execute a few commands
+        run: |
+          echo "Hello Message1"
+          echo "Hello Message2"
+          echo "Application name: ${{ env.APPLICATION_NAME }}"
         
-    - name: List current folder
-      run : |
-        ls -la
-        pwd
+      - name: List current folder
+        run: |
+          ls -la
+          pwd
 
-    - name: Git clone my repo
-      uses: actions/checkout@v1
+      - name: Git clone my repo
+        uses: actions/checkout@v3
 
-    - name: List current folder
-      run : |
-        ls -la
-        pwd
-        
+      - name: List folder after clone
+        run: |
+          ls -la
+          pwd
 
   deploy:
     runs-on: ubuntu-latest
     needs: [testing]
     env:
-      VAR1 : "This is Job Level Variable1"
-      VAR2 : "This is Job Level Variable2"
+      VAR1: "This is Job Level Variable1"
+      VAR2: "This is Job Level Variable2"
     
     steps:
-    - name: Print Hello Message
-      run : echo "Hello world from Deploy job"
+      - name: Print Hello Message
+        run: echo "Hello world from Deploy job"
 
-    - name: Print env vars
-      run : |
-        echo "Var1 = ${{ env.VAR1 }}"
-        echo "Var2 = ${{ env.VAR2 }}"
-        echo "Var3 = $LOCAL_VAR"
-      env :
-        LOCAL_VAR: "This is Super local Environment variable"
+      - name: Print env vars
+        run: |
+          echo "Var1 = ${{ env.VAR1 }}"
+          echo "Var2 = ${{ env.VAR2 }}"
+          echo "Var3 = $LOCAL_VAR"
+        env:
+          LOCAL_VAR: "This is Super local Environment variable"
       
-    - name: Printing Deployment package
-      run : echo "Deploy package name is ${{ env.DEPLOY_PACKAGE_NAME }}"
+      - name: Print Deployment package
+        run: echo "Deploy package name is ${{ env.DEPLOY_PACKAGE_NAME }}"
 
-    - name: Lets test some packages if they are here 1
-      run : aws --version
+      - name: Test if AWS CLI is installed
+        run: aws --version
       
-    - name: Lets test some packages if they are here 2
-      run : zip
-      
+      - name: Test if zip is installed
+        run: zip --version
+
+  telegram-notification:
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ❌ Сборка упала: ${{ github.workflow }} (commit: ${{ github.sha }})
+            Посмотреть логи: ${{ github.run_url }}
 
