@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Telegram Notification
-        if: failure()
+        if: ${{ needs.deploy.result == 'failure' }}
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -79,4 +79,5 @@ jobs:
           message: |
             ❌ Сборка упала: ${{ github.workflow }} (commit: ${{ github.sha }})
             Посмотреть логи: ${{ github.run_url }}
+            Теееест
 
