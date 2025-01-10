@@ -67,6 +67,7 @@ jobs:
 
   telegram-notification:
     if: always()
+    needs: [deploy]
     runs-on: ubuntu-latest
     steps:
       - name: Send Telegram Notification
