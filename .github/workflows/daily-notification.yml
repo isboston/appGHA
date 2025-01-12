@@ -1,0 +1,33 @@
+name: Daily Notification
+
+on:
+  schedule:
+    - cron: "0 11 * * *" # Запускается каждый день в 10:00 UTC
+
+jobs:
+  notify-failures:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download failure log
+        uses: actions/download-artifact@v3
+        with:
+          name: build_failures
+          path: build_failures.log
+
+      - name: Send aggregated notification
+        run: |
+          if [ -f build_failures.log ] && [ -s build_failures.log ]; then
+            MESSAGE=$(cat build_failures.log)
+            curl -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+              -H "Content-Type: application/json" \
+              -d '{
+                "chat_id": "${{ secrets.TELEGRAM_CHAT_ID }}",
+                "parse_mode": "Markdown",
+                "disable_web_page_preview": true,
+                "text": "🚨 *Daily Build Failures Report*\n\n$MESSAGE"
+              }'
+            # Очистить лог после отправки уведомления
+            > build_failures.log
+          else
+            echo "No failures to report."
+          fi

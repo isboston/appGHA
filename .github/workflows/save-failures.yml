@@ -1,0 +1,23 @@
+name: Save Build Failures
+
+on:
+  workflow_run:
+    types:
+      - completed
+
+jobs:
+  save-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Append failure details to log
+        run: |
+          echo "❌ Workflow: ${{ github.workflow }} failed on branch ${{ github.ref_name }}" >> build_failures.log
+          echo "🔗 Run details: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> build_failures.log
+          echo "" >> build_failures.log # Добавить разделитель между записями
+
+      - name: Upload failure log
+        uses: actions/upload-artifact@v3
+        with:
+          name: build_failures
+          path: build_failures.log
