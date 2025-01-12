@@ -77,9 +77,9 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           disable_web_page_preview: true
-          parse_mode: markdownv2
+          parse_mode: markdown
           message: |
-            ❌ Build failed in repository: [${{ github.repository }}](https://github.com/${{ github.repository }})
+            ❌ Build failed in repository: **${{ github.repository }}**
             ➡️ Link: [View Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             📌 Branch: `${{ github.ref_name }}`
             ✍️ Commit: `${{ github.event.head_commit.message }}`
