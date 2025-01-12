@@ -38,6 +38,7 @@ jobs:
     needs: [testing]
     env:
       VAR1: "This is Job Level Variable1"
+      VAR2: "This is Job Level Variable2"
     
     steps:
       - name: Print Hello Message
@@ -54,6 +55,11 @@ jobs:
       - name: Print Deployment package
         run: echo "Deploy package name is ${{ env.DEPLOY_PACKAGE_NAME }}"
 
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
       - name: Test if AWS CLI is installed
         run: aws --version
 
@@ -65,9 +71,9 @@ jobs:
     needs: [deploy]
     runs-on: ubuntu-latest
     steps:
-      - name: Send Telegram Notification
+      - name: Send Telegram Notification via appleboy
         if: ${{ needs.deploy.result == 'failure' }}
-        uses: appleboy/telegram-action@master
+        uses: appleboy/telegram-action@v0.3.5
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -80,7 +86,7 @@ jobs:
             ✍️ Commit: `${{ github.event.head_commit.message }}`
             🧑‍💻 Author: `${{ github.actor }}`
 
-      - name: Send Telegram Notification
+      - name: Send Telegram Notification via curl
         if: ${{ needs.deploy.result == 'failure' }}
         run: |
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
@@ -90,11 +96,11 @@ jobs:
               "parse_mode": "Markdown",
               "disable_web_page_preview": true,
               "text": "❌ *Build Failed*\n\n\
-      📦 Repository: [${{ github.repository }}](https://github.com/${{ github.repository }})\n\
-      🔗 Details: [View Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\
-      🌿 Branch: `${{ github.ref_name }}`\n\
-      📝 Commit: `${{ github.event.head_commit.message }}`\n\
-      👤 Author: `${{ github.actor }}`"
-                  }'
+📦 Repository: [${{ github.repository }}](https://github.com/${{ github.repository }})\n\
+🔗 Details: [View Build](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\
+🌿 Branch: `${{ github.ref_name }}`\n\
+📝 Commit: `${{ github.event.head_commit.message }}`\n\
+👤 Author: `${{ github.actor }}`"
+            }'
 
 
