@@ -77,7 +77,9 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
-            ❌ Сборка упала: ${{ github.workflow }} (commit: ${{ github.sha }})
-            Посмотреть логи: ${{ github.run_url }}
-            Теееест
+            ❌ Сборка упала в репозитории: ${{ github.repository }}
+            ➡️ Ссылка на запуск: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            📌 Ветка: ${{ github.ref_name }}
+            ✍️ Коммит: ${{ github.event.head_commit.message }}
+            🧑‍💻 Автор: ${{ github.actor }}
 
