@@ -77,12 +77,12 @@ jobs:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           disable_web_page_preview: true
-          parse_mode: markdown
+          parse_mode: html
           message: |
-            ❌ Сборка упала в репозитории: ${{ github.repository }}
-            ➡️ Ссылка: [Перейти](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            📌 Ветка: ${{ github.ref_name }}
-            ✍️ Коммит: ${{ github.event.head_commit.message }}
-            🧑‍💻 Автор: ${{ github.actor }}
+            ❌ Сборка упала в репозитории: <a href="https://github.com/${{ github.repository }}">${{ github.repository }}</a>
+            ➡️ Link: <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View Details</a>
+            📌 Branch: ${{ github.ref_name }}
+            ✍️ Commit: ${{ github.event.head_commit.message }}
+            🧑‍💻 Author: ${{ github.actor }}
           
 
