@@ -78,7 +78,7 @@ jobs:
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           message: |
             ❌ Сборка упала в репозитории: ${{ github.repository }}
-            ➡️ Ссылка на запуск: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            ➡️ Ссылка: [Ссылка](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             📌 Ветка: ${{ github.ref_name }}
             ✍️ Коммит: ${{ github.event.head_commit.message }}
             🧑‍💻 Автор: ${{ github.actor }}
