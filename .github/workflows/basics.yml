@@ -78,8 +78,8 @@ jobs:
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           disable_web_page_preview: true
           message: |
-            ❌ Failed in repository: [${{ github.repository }}](https://github.com/${{ github.repository }})
-            ➡️ View Details: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            ❌ Failed in repository: ${{ github.repository }}
+            ➡️ View: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
             📌 Branch: ${{ github.ref_name }}
             ✍️ Commit: ${{ github.event.head_commit.message }}
             🧑‍💻 Author: ${{ github.actor }}
