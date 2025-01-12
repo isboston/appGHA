@@ -2,6 +2,8 @@ name: Save Build Failures
 
 on:
   workflow_run:
+    workflows:
+      - Install OneClickInstall DocSpace
     types:
       - completed
 
