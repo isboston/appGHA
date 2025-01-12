@@ -76,13 +76,13 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          parse_mode: 'HTML'
+          parse_mode: 'Markdown'
           disable_web_page_preview: true
           message: |
-            ❌ Сборка упала в репозитории: <a href="https://github.com/isboston/appGHA">isboston/appGHA</a>
-            ➡️ Link: <a href="https://github.com/isboston/appGHA/actions/runs/12734564110">View Details</a>
-            📌 Branch: main
-            ✍️ Commit: Fix cosmetic issues in OCI scripts
-            🧑‍💻 Author: isboston
+            ❌ Build failed in repository: [${{ github.repository }}](https://github.com/${{ github.repository }})
+            ➡️ Link: [View Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            📌 Branch: ${{ github.ref_name }}
+            ✍️ Commit: ${{ github.event.head_commit.message }}
+            🧑‍💻 Author: ${{ github.actor }}
           
 
