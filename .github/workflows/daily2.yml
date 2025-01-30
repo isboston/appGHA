@@ -1,0 +1,115 @@
+name: Hourly Build Report
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # Запуск раз в час
+  workflow_dispatch:  # Возможность запустить вручную
+
+jobs:
+  check-build-results:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔍 Получаем список всех артефактов через API (фильтр 1 час)
+        run: |
+          echo "🔍 Получаем список артефактов за последний 1 час..."
+          CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          ONE_HOUR_AGO=$(date -u -d "1 hour ago" +"%Y-%m-%dT%H:%M:%SZ")
+
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | \
+            jq --arg since "$ONE_HOUR_AGO" --arg now "$CURRENT_TIME" \
+            '.artifacts | map(select(.created_at >= $since and .created_at <= $now)) | .[].name' > artifacts_list.txt
+
+          echo "📂 Найденные артефакты:"
+          cat artifacts_list.txt || echo "❌ Нет артефактов за последний час!"
+
+      - name: ⬇️ Скачиваем артефакты за последний час
+        run: |
+          mkdir -p artifacts
+          touch downloaded_artifacts.txt
+          
+          while read ARTIFACT_NAME; do
+            if [ -n "$ARTIFACT_NAME" ] && ! grep -Fxq "$ARTIFACT_NAME" downloaded_artifacts.txt; then
+              echo "$ARTIFACT_NAME" >> downloaded_artifacts.txt
+              echo "⬇️ Скачиваем $ARTIFACT_NAME в artifacts/$ARTIFACT_NAME..."
+              gh run download --repo ${{ github.repository }} -n "$ARTIFACT_NAME" -D "artifacts/$ARTIFACT_NAME"
+            fi
+          done < artifacts_list.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔎 Проверяем скаченные файлы
+        run: |
+          ls -lah artifacts || echo "❌ Нет скачанных файлов!"
+          find artifacts -type f || echo "❌ Нет файлов!"
+
+      - name: 📂 Проверяем содержимое скачанных `build_results.json`
+        run: |
+          echo "📂 Проверяем содержимое каждого build_results.json:"
+          find artifacts -name "build_results.json" | while read file; do
+            echo "🔍 Файл: $file"
+            cat "$file"
+            echo "----------------"
+          done
+
+      - name: 📂 Объединяем все build_results.json в один файл
+        run: |
+          echo "[]" > merged_results.json
+          find artifacts -name "build_results.json" | while read file; do
+            echo "📁 Добавляем $file в merged_results.json"
+            jq -s 'add' merged_results.json "$file" > tmp.json && mv tmp.json merged_results.json
+          done
+
+          echo "📄 Итоговое содержимое merged_results.json:"
+          cat merged_results.json
+
+      - name: 🔄 **Исправляем пустые статусы**
+        run: |
+          jq 'map(if .status == "" then .status = "failure" else . end)' merged_results.json > tmp.json && mv tmp.json merged_results.json
+          echo "📄 После исправления:"
+          cat merged_results.json
+
+      - name: 📂 **Проверяем `build_failures.log` и добавляем ошибки**
+        run: |
+          if [ -f artifacts/build_failures/build_failures.log ]; then
+            FAIL_COUNT=$(cat artifacts/build_failures/build_failures.log | wc -l)
+            for ((i=1; i<=FAIL_COUNT; i++)); do
+              jq '. += [{"date": "'"$(date -u +"%Y-%m-%d")"'", "status": "failure"}]' merged_results.json > tmp.json && mv tmp.json merged_results.json
+            done
+          fi
+          echo "📄 После добавления `build_failures.log`:"
+          cat merged_results.json
+
+      - name: 📢 **Отправляем отчет в Telegram**
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ ! -s merged_results.json ]; then
+            echo "❌ Нет данных о сборках за последний час. Выход."
+            exit 0
+          fi
+
+          echo "📄 Проверяем merged_results.json:"
+          jq . merged_results.json
+
+          FAILURES=$(jq '[.[] | select(.status=="failure" or .status=="failed" or .status=="error")] | length' merged_results.json)
+          TOTAL=$(jq 'length' merged_results.json)
+
+          MESSAGE="🕒 *Отчет о сборках за последний час*\n"
+          MESSAGE+="📊 Всего сборок: *$TOTAL*\n"
+          if [ "$FAILURES" -eq 0 ]; then
+            MESSAGE+="✅ *Все сборки успешны!* 🎉\n"
+          else
+            MESSAGE+="❌ *Проблемные сборки: $FAILURES*\n"
+          fi
+          MESSAGE+="🔗 [Перейти к Actions](https://github.com/${{ github.repository }}/actions)\n"
+
+          echo "📨 Отправляем сообщение в Telegram:"
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\"}"
