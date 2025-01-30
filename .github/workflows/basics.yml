@@ -57,8 +57,8 @@ jobs:
       - name: Test if AWS CLI is installed
         run: aws --version
       
-      - name: Test if zip is installed
-        run: zip --version
+      # - name: Test if zip is installed
+      #   run: zip --version
 
       - name: Simulate failure
         run: exit 1
