@@ -13,27 +13,49 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download all build results
-        uses: actions/download-artifact@v4
-        with:
-          path: all_results
-        continue-on-error: true
+      - name: Получаем список артефактов через API
+        run: |
+          echo "🔍 Получаем список артефактов..."
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" | jq -r '.artifacts[].name' > artifacts_list.txt
+
+          echo "📂 Найденные артефакты:"
+          cat artifacts_list.txt || echo "❌ Нет артефактов!"
+
+      - name: Скачиваем все найденные артефакты
+        run: |
+          while read ARTIFACT_NAME; do
+            if [ -n "$ARTIFACT_NAME" ]; then
+              echo "⬇️ Скачиваем $ARTIFACT_NAME..."
+              gh run download ${{ github.run_id }} -n "$ARTIFACT_NAME"
+            fi
+          done < artifacts_list.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Проверяем скаченные файлы
+        run: |
+          ls -lah || echo "❌ Нет скачанных файлов!"
+          find . -type f || echo "❌ Нет файлов!"
 
       - name: Объединяем все build_results в один файл
         run: |
           echo "[]" > merged_results.json
-          find all_results -name "build_results-*/build_results.json" | while read file; do
+          find . -name "build_results.json" | while read file; do
             if [ -f "$file" ]; then
               jq -s 'add' merged_results.json "$file" > tmp.json && mv tmp.json merged_results.json
             fi
           done
+
+          echo "📄 Содержимое merged_results.json:"
+          cat merged_results.json
 
       - name: Анализируем сборки и отправляем уведомление
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ ! -f merged_results.json ]; then
+          if [ ! -s merged_results.json ]; then
             echo "Нет данных о сборках. Выход."
             exit 0
           fi
@@ -41,20 +63,16 @@ jobs:
           FAILURES=$(jq '[.[] | select(.status=="failure")] | length' merged_results.json)
           TOTAL=$(jq 'length' merged_results.json)
 
-          if [ "$FAILURES" -eq 0 ]; then
-            echo "Все сборки успешны. Сообщение не отправляется."
-            exit 0
-          fi
-
           MESSAGE="📅 *Ежедневный отчет о сборках*\n"
           MESSAGE+="📊 Всего сборок: *$TOTAL*\n"
-          MESSAGE+="❌ *Проблемные сборки: $FAILURES*\n"
+          if [ "$FAILURES" -eq 0 ]; then
+            MESSAGE+="✅ *Все сборки успешны!* 🎉\n"
+          else
+            MESSAGE+="❌ *Проблемные сборки: $FAILURES*\n"
+          fi
           MESSAGE+="🔗 [Перейти к Actions](https://github.com/${{ github.repository }}/actions)\n"
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\"}"
-
-      - name: Очистка логов перед новым днем
-        run: rm -f merged_results.json
 
