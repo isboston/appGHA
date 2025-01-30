@@ -2,7 +2,7 @@ name: Daily Build Report
 
 on:
   schedule:
-    - cron: "59 23 * * *"  # Запуск каждый день в 23:59 UTC
+    - cron: "*/5 * * * *"  # Запуск каждый день в 23:59 UTC
   workflow_dispatch:  # Можно запустить вручную
 
 jobs:
