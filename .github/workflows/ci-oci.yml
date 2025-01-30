@@ -56,7 +56,7 @@ jobs:
       - name: Сохраняем текущий результат
         run: |
           NOW=$(date -u +"%Y-%m-%d")
-          RESULT="${{ job.status }}"  # success или failure
+          RESULT="${{ needs.deploy.result }}"  # success или failure
           jq --arg date "$NOW" --arg status "$RESULT" '. += [{"date": $date, "status": $status}]' results_tmp.json > build_results.json
 
       - name: Загружаем build_results.json
