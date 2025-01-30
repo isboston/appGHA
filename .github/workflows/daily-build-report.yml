@@ -37,22 +37,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-
       - name: 🔎 Проверяем скаченные файлы
         run: |
           ls -lah artifacts || echo "❌ Нет скачанных файлов!"
           find artifacts -type f || echo "❌ Нет файлов!"
 
-      - name: 📂 Объединяем все build_results в один файл
+      - name: 📂 Проверяем содержимое скачанных `build_results.json`
+        run: |
+          echo "📂 Проверяем содержимое каждого build_results.json:"
+          find artifacts -name "build_results.json" | while read file; do
+            echo "🔍 Файл: $file"
+            cat "$file"
+            echo "----------------"
+          done
+
+      - name: 📂 Объединяем все build_results.json в один файл
         run: |
           echo "[]" > merged_results.json
           find artifacts -name "build_results.json" | while read file; do
-            if [ -f "$file" ]; then
-              jq -s 'add' merged_results.json "$file" > tmp.json && mv tmp.json merged_results.json
-            fi
+            echo "📁 Добавляем $file в merged_results.json"
+            jq -s 'add' merged_results.json "$file" > tmp.json && mv tmp.json merged_results.json
           done
 
-          echo "📄 Содержимое merged_results.json:"
+          echo "📄 Итоговое содержимое merged_results.json:"
           cat merged_results.json
 
       - name: 📢 Анализируем сборки и отправляем уведомление
@@ -61,11 +68,14 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ ! -s merged_results.json ]; then
-            echo "Нет данных о сборках. Выход."
+            echo "❌ Нет данных о сборках. Выход."
             exit 0
           fi
 
-          FAILURES=$(jq '[.[] | select(.status=="failure")] | length' merged_results.json)
+          echo "📄 Проверяем merged_results.json:"
+          jq . merged_results.json
+
+          FAILURES=$(jq '[.[] | select(.status=="failure" or .status=="failed" or .status=="error")] | length' merged_results.json)
           TOTAL=$(jq 'length' merged_results.json)
 
           MESSAGE="📅 *Ежедневный отчет о сборках*\n"
@@ -77,8 +87,10 @@ jobs:
           fi
           MESSAGE+="🔗 [Перейти к Actions](https://github.com/${{ github.repository }}/actions)\n"
 
+          echo "📨 Отправляем сообщение в Telegram:"
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\"}"
+
 
 
