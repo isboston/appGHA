@@ -32,3 +32,35 @@ jobs:
       - name: Simulate failure
         run: exit 1
 
+  log-build-result:
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download previous results
+        uses: actions/download-artifact@v4
+        with:
+          name: build_results
+        continue-on-error: true
+
+      - name: Создаем/загружаем build_results.json
+        run: |
+          if [ -f build_results.json ]; then
+            cp build_results.json results_tmp.json
+          else
+            echo '[]' > results_tmp.json
+          fi
+
+      - name: Сохраняем текущий результат
+        run: |
+          NOW=$(date -u +"%Y-%m-%d")
+          RESULT="${{ job.status }}"  # success или failure
+          jq --arg date "$NOW" --arg status "$RESULT" '. += [{"date": $date, "status": $status}]' results_tmp.json > build_results.json
+
+      - name: Загружаем build_results.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: build_results
+          path: build_results.json
