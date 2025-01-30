@@ -13,32 +13,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Получаем список артефактов через API
+      - name: 🔍 Получаем список ВСЕХ артефактов через API
         run: |
-          echo "🔍 Получаем список артефактов..."
+          echo "🔍 Получаем список всех артефактов за последние 24 часа..."
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" | jq -r '.artifacts[].name' > artifacts_list.txt
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | jq -r '.artifacts[].name' > artifacts_list.txt
 
           echo "📂 Найденные артефакты:"
           cat artifacts_list.txt || echo "❌ Нет артефактов!"
 
-      - name: Скачиваем все найденные артефакты
+      - name: ⬇️ Скачиваем все найденные артефакты
         run: |
           while read ARTIFACT_NAME; do
             if [ -n "$ARTIFACT_NAME" ]; then
               echo "⬇️ Скачиваем $ARTIFACT_NAME..."
-              gh run download ${{ github.run_id }} -n "$ARTIFACT_NAME"
+              gh run download --repo ${{ github.repository }} -n "$ARTIFACT_NAME"
             fi
           done < artifacts_list.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Проверяем скаченные файлы
+      - name: 🔎 Проверяем скаченные файлы
         run: |
           ls -lah || echo "❌ Нет скачанных файлов!"
           find . -type f || echo "❌ Нет файлов!"
 
-      - name: Объединяем все build_results в один файл
+      - name: 📂 Объединяем все build_results в один файл
         run: |
           echo "[]" > merged_results.json
           find . -name "build_results.json" | while read file; do
@@ -50,7 +50,7 @@ jobs:
           echo "📄 Содержимое merged_results.json:"
           cat merged_results.json
 
-      - name: Анализируем сборки и отправляем уведомление
+      - name: 📢 Анализируем сборки и отправляем уведомление
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
