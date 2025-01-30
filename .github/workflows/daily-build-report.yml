@@ -25,14 +25,18 @@ jobs:
       - name: ⬇️ Скачиваем все найденные артефакты в отдельные папки
         run: |
           mkdir -p artifacts
+          touch downloaded_artifacts.txt
+          
           while read ARTIFACT_NAME; do
-            if [ -n "$ARTIFACT_NAME" ]; then
+            if [ -n "$ARTIFACT_NAME" ] && ! grep -Fxq "$ARTIFACT_NAME" downloaded_artifacts.txt; then
+              echo "$ARTIFACT_NAME" >> downloaded_artifacts.txt
               echo "⬇️ Скачиваем $ARTIFACT_NAME в artifacts/$ARTIFACT_NAME..."
               gh run download --repo ${{ github.repository }} -n "$ARTIFACT_NAME" -D "artifacts/$ARTIFACT_NAME"
             fi
           done < artifacts_list.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: 🔎 Проверяем скаченные файлы
         run: |
