@@ -11,11 +11,7 @@ jobs:
     steps:
       - name: Print Hello Message
         run: echo "Hello world from Testing job"
-      
-      - name: List current folder
-        run: |
-          ls -la
-          pwd
+
       - name: Git clone my repo
         uses: actions/checkout@v3
 
@@ -26,15 +22,13 @@ jobs:
       - name: Print Hello Message
         run: echo "Hello world from Deploy job"
 
-      - name: Test if AWS CLI is installed
-        run: aws --version
-
       - name: Simulate failure
-        run: exit 1
+        run: exit 0
 
   log-build-result:
     if: always()
     runs-on: ubuntu-latest
+    needs: [deploy]  # Нужно, чтобы получить статус "deploy"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,7 +50,12 @@ jobs:
       - name: Сохраняем текущий результат
         run: |
           NOW=$(date -u +"%Y-%m-%d")
-          RESULT="${{ needs.deploy.result }}"  # success или failure
+          RAW_RESULT="${{ needs.deploy.result }}"
+          if [[ -z "$RAW_RESULT" ]]; then
+            RESULT="failure"
+          else
+            RESULT="$RAW_RESULT"
+          fi
           jq --arg date "$NOW" --arg status "$RESULT" '. += [{"date": $date, "status": $status}]' results_tmp.json > build_results.json
 
       - name: Загружаем build_results.json
@@ -65,4 +64,5 @@ jobs:
           name: build_results-${{ github.run_id }}
           path: build_results.json
           retention-days: 1
+
 
