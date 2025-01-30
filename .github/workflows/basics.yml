@@ -63,28 +63,12 @@ jobs:
       - name: Simulate failure
         run: exit 1
 
-  telegram-notification:
-    if: always()
+  telegram-notify:
+    if: ${{ needs.deploy.result == 'failure' }}
     needs: [deploy]
     runs-on: ubuntu-latest
     steps:
-      # - name: Send Telegram Notification
-      #   if: ${{ needs.deploy.result == 'failure' }}
-      #   uses: appleboy/telegram-action@master
-      #   with:
-      #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
-      #     token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-      #     disable_web_page_preview: true
-      #     parse_mode: Markdown
-      #     message: |
-      #       ❌ Failed in repository: [${{ github.repository }}](https://github.com/${{ github.repository }})
-      #       ➡️ [View Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-      #       📌 Branch: `${{ github.ref_name }}`
-      #       ✍️ Commit: `${{ github.event.head_commit.message }}`
-      #       🧑‍💻 Author: `${{ github.actor }}`
-      #
-
-      - name: Send Telegram Notification
+      - name: Send Telegram Notification on failed
         if: ${{ needs.deploy.result == 'failure' }}
         run: |
           curl -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
