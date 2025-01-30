@@ -1,0 +1,72 @@
+name: Daily Telegram Notifier
+
+on:
+  schedule:
+    # Запуск в 10:00 UTC каждый день
+    - cron: '0 10 * * *'
+
+jobs:
+  daily-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check failed runs
+        id: check_failed_runs
+        shell: bash
+        run: |
+          # Array of repositories to check
+          repos=("isboston/appGHA" "isboston/appGHA2")
+
+          # Calculate timestamp for 24 hours ago
+          yesterday=$(date -u -d '24 hours ago' +%s)
+          fail_info=""
+
+          # GitHub Token (по умолчанию GITHUB_TOKEN доступен здесь)
+          GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+
+          for repo in "${repos[@]}"; do
+            # Request only runs with status=failure
+            response=$(curl -s \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$repo/actions/runs?status=failure&per_page=100")
+
+            # Total failed runs count for this repo
+            count=$(echo "$response" | jq '.total_count')
+
+            # Если есть упавшие джобы, проверим время каждой
+            if [ "$count" -gt 0 ]; then
+              runs=$(echo "$response" | jq -c '.workflow_runs[]')
+              while IFS= read -r run; do
+                created_at=$(echo "$run" | jq -r '.created_at')
+                created_timestamp=$(date -d "$created_at" +%s)
+
+                # Смотрим, чтобы эта неудача была за последние 24 часа
+                if [ "$created_timestamp" -gt "$yesterday" ]; then
+                  html_url=$(echo "$run" | jq -r '.html_url')
+                  workflow_name=$(echo "$run" | jq -r '.name')
+
+                  # Формируем общий список ошибок
+                  fail_info+="$repo ($workflow_name): $html_url\n"
+                fi
+              done <<< "$runs"
+            fi
+          done
+
+          # Если список ошибок не пуст, передаем сообщение и флаг "true"
+          if [ -n "$fail_info" ]; then
+            message="Обнаружены неудачные сборки за последние 24 часа:\n$fail_info"
+            echo "message<<EOF" >> $GITHUB_OUTPUT
+            echo "$message" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "should_send=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_send=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Telegram Notification
+        if: steps.check_failed_runs.outputs.should_send == 'true'
+        run: |
+          curl -s -X POST \
+            https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            -d text="${{ steps.check_failed_runs.outputs.message }}"

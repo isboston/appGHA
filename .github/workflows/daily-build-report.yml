@@ -2,7 +2,7 @@ name: Daily Build Report
 
 on:
   schedule:
-    - cron: "*/10 * * * *"  # Запуск каждые 10 минут (для теста)
+    - cron: '0 10 * * *'
   workflow_dispatch:  # Возможность запустить вручную
 
 jobs:
