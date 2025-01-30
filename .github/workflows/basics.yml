@@ -64,7 +64,6 @@ jobs:
         run: exit 1
 
   telegram-notify:
-    if: ${{ needs.deploy.result == 'failure' }}
     needs: [deploy]
     runs-on: ubuntu-latest
     steps:
