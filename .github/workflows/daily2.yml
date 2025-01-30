@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🔍 Получаем список всех артефактов через API (фильтр 1 час)
+      - name: 🔍 Получаем список артефактов за последний 1 час
         run: |
           echo "🔍 Получаем список артефактов за последний 1 час..."
           CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -31,12 +31,20 @@ jobs:
         run: |
           mkdir -p artifacts
           touch downloaded_artifacts.txt
-          
+
           while read ARTIFACT_NAME; do
+            ARTIFACT_NAME=$(echo "$ARTIFACT_NAME" | tr -d '"')
+
             if [ -n "$ARTIFACT_NAME" ] && ! grep -Fxq "$ARTIFACT_NAME" downloaded_artifacts.txt; then
               echo "$ARTIFACT_NAME" >> downloaded_artifacts.txt
-              echo "⬇️ Скачиваем $ARTIFACT_NAME в artifacts/$ARTIFACT_NAME..."
-              gh run download --repo ${{ github.repository }} -n "$ARTIFACT_NAME" -D "artifacts/$ARTIFACT_NAME"
+              echo "⬇️ Проверяем доступность $ARTIFACT_NAME..."
+
+              # Ждем 60 секунд, пока артефакт станет доступным
+              for i in {1..6}; do
+                gh run download --repo ${{ github.repository }} -n "$ARTIFACT_NAME" -D "artifacts/$ARTIFACT_NAME" && break
+                echo "⏳ Артефакт $ARTIFACT_NAME пока недоступен, пробуем снова через 10 сек..."
+                sleep 10
+              done || echo "❌ Ошибка: Артефакт $ARTIFACT_NAME так и не стал доступен."
             fi
           done < artifacts_list.txt
         env:
