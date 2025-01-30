@@ -64,6 +64,7 @@ jobs:
         run: exit 1
 
   telegram-notify:
+    if: always()
     needs: [deploy]
     runs-on: ubuntu-latest
     steps:
