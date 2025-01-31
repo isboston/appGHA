@@ -66,21 +66,25 @@ jobs:
               URL=$(echo "$line" | jq -r '.html_url // "Нет ссылки"')
               TRIGGERED_BY=$(echo "$line" | jq -r '.triggered_by // "Неизвестный"')
 
+              # Экранируем спецсимволы для Telegram Markdown
+              NAME=$(echo "$NAME" | sed 's/_/\\_/g')
+              BRANCH=$(echo "$BRANCH" | sed 's/_/\\_/g')
+              TRIGGERED_BY=$(echo "$TRIGGERED_BY" | sed 's/_/\\_/g')
+
               FAIL_LIST+="🔹 *${NAME}*\n"
               FAIL_LIST+="  ├ 📌 Ветка: *${BRANCH}*\n"
               FAIL_LIST+="  ├ 👤 Запустил: *${TRIGGERED_BY}*\n"
               FAIL_LIST+="  ├ 🔗 [Лог](${URL})\n\n"
             done
 
+            echo "📄 Итоговый список ошибок:"
+            echo "$FAIL_LIST"
+
             MESSAGE+="$FAIL_LIST"
           fi
 
-          # Убираем предпросмотр ссылок
+          # Отправка в Telegram
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
-
-
-
-
 
