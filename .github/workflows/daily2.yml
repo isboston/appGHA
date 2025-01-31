@@ -1,8 +1,8 @@
 name: Hourly Build Report22
 
 on:
-  schedule:
-    - cron: "0 * * * *" 
+  # schedule:
+  #   - cron: "18 * * * *" 
   workflow_dispatch:
 
 jobs:
