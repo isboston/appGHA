@@ -2,8 +2,8 @@ name: Hourly Build Report
 
 on:
   schedule:
-    - cron: "0 * * * *"  # Запуск раз в час
-  workflow_dispatch:  # Возможность запустить вручную
+    - cron: "0 * * * *"
+  workflow_dispatch:
 
 jobs:
   check-build-results:
@@ -133,7 +133,6 @@ jobs:
             MESSAGE+="$FAIL_LIST"
           fi
 
-          # Отключаем предпросмотр ссылок
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
