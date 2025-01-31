@@ -47,8 +47,8 @@ jobs:
           echo "📄 Проверяем merged_results.json:"
           cat merged_results.json
 
-          # Фильтруем только неудачные сборки
-          FAILURES=$(jq '[.[] | select(.status=="failure" or .status=="failed" or .status=="error")]' merged_results.json)
+          # Фильтруем неудачные сборки
+          FAILURES=$(jq '[.[] | select(.status=="failure" or .status=="failed" or .status=="error" or .status=="startup_failure")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           TOTAL=$(jq 'length' merged_results.json)
 
@@ -60,29 +60,17 @@ jobs:
           if [ "$FAIL_COUNT" -eq 0 ]; then
             MESSAGE+="✅ *Все сборки успешны!* 🎉\n"
           else
-            MESSAGE+="❌ *Проблемные сборки: $FAIL_COUNT*\n"
+            MESSAGE+="❌ *Проблемные сборки: $FAIL_COUNT*\n\n"
 
-            FAIL_LIST=""
-            echo "🔍 Список проваленных сборок:"
-            echo "$FAILURES" | jq '.[]'
-
-            echo "$FAILURES" | jq -r '.[] | @base64' | while IFS= read -r line; do
-              JSON=$(echo "$line" | base64 --decode)
-              NAME=$(echo "$JSON" | jq -r '.name // "Неизвестный workflow"')
-              BRANCH=$(echo "$JSON" | jq -r '.branch // "Неизвестная ветка"')
-              URL=$(echo "$JSON" | jq -r '.html_url // "Нет ссылки"')
-              TRIGGERED_BY=$(echo "$JSON" | jq -r '.triggered_by // "Неизвестный"')
-
-              # Экранируем спецсимволы Markdown
-              NAME=$(echo "$NAME" | sed 's/_/\\_/g')
-              BRANCH=$(echo "$BRANCH" | sed 's/_/\\_/g')
-              TRIGGERED_BY=$(echo "$TRIGGERED_BY" | sed 's/_/\\_/g')
-
-              FAIL_LIST+="🔹 *${NAME}*\n"
-              FAIL_LIST+="  ├ 📌 Ветка: *${BRANCH}*\n"
-              FAIL_LIST+="  ├ 👤 Запустил: *${TRIGGERED_BY}*\n"
-              FAIL_LIST+="  ├ 🔗 [Лог](${URL})\n\n"
-            done
+            # Формируем список ошибок одним вызовом jq
+            FAIL_LIST=$(echo "$FAILURES" | jq -r '
+              map(
+                "🔹 *\(.name // "Неизвестный workflow")* " +
+                "\n  ├ 📌 Ветка: *\(.branch // "Неизвестная ветка")*" +
+                "\n  ├ 👤 Запустил: *\(.triggered_by // "Неизвестный")*" +
+                "\n  ├ 🔗 [Лог](\(.html_url // "Нет ссылки"))\n"
+              ) | join("\n")
+            ')
 
             echo "📄 Итоговый список ошибок:"
             echo "$FAIL_LIST"
