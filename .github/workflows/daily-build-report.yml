@@ -34,7 +34,7 @@ jobs:
           echo "📄 Итоговый merged_results.json:"
           cat merged_results.json
 
-            - name: 📢 **Отправляем отчет в Telegram**
+      - name: 📢 **Отправляем отчет в Telegram**
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
