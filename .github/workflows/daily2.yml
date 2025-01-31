@@ -2,7 +2,7 @@ name: Hourly Build Report
 
 on:
   schedule:
-    - cron: "0 */5 * * *"  # Запуск раз в час
+    - cron: "0 * * * *"  # Запуск раз в час
   workflow_dispatch:  # Возможность запустить вручную
 
 jobs:
@@ -105,19 +105,36 @@ jobs:
           echo "📄 Проверяем merged_results.json:"
           jq . merged_results.json
 
-          FAILURES=$(jq '[.[] | select(.status=="failure" or .status=="failed" or .status=="error")] | length' merged_results.json)
+          FAILURES=$(jq '[.[] | select(.status=="failure" or .status=="failed" or .status=="error")]' merged_results.json)
+          FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           TOTAL=$(jq 'length' merged_results.json)
 
           MESSAGE="🕒 *Отчет о сборках за последний час*\n"
           MESSAGE+="📊 Всего сборок: *$TOTAL*\n"
-          if [ "$FAILURES" -eq 0 ]; then
+          
+          if [ "$FAIL_COUNT" -eq 0 ]; then
             MESSAGE+="✅ *Все сборки успешны!* 🎉\n"
           else
-            MESSAGE+="❌ *Проблемные сборки: $FAILURES*\n"
-          fi
-          MESSAGE+="🔗 [Перейти к Actions](https://github.com/${{ github.repository }}/actions)\n"
+            MESSAGE+="❌ *Проблемные сборки: $FAIL_COUNT*\n"
 
-          echo "📨 Отправляем сообщение в Telegram:"
+            FAIL_LIST=""
+            echo "$FAILURES" | jq -c '.[]' | while read line; do
+              NAME=$(echo "$line" | jq -r '.name')
+              BRANCH=$(echo "$line" | jq -r '.branch')
+              URL=$(echo "$line" | jq -r '.html_url')
+              TRIGGERED_BY=$(echo "$line" | jq -r '.triggered_by')
+
+              FAIL_LIST+="🔹 *${NAME}*\n"
+              FAIL_LIST+="  ├ 📌 Ветка: *${BRANCH}*\n"
+              FAIL_LIST+="  ├ 👤 Запустил: *${TRIGGERED_BY}*\n"
+              FAIL_LIST+="  ├ 🔗 [Лог]( ${URL} )\n\n"
+            done
+
+            MESSAGE+="$FAIL_LIST"
+          fi
+
+          # Отключаем предпросмотр ссылок
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\"}"
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
