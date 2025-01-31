@@ -47,9 +47,12 @@ jobs:
           echo "📄 Проверяем merged_results.json:"
           cat merged_results.json
 
+          # Фильтруем только упавшие сборки
           FAILURES=$(jq '[.[] | select(.status=="failure" or .status=="failed" or .status=="error")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           TOTAL=$(jq 'length' merged_results.json)
+
+          echo "🔍 Найдено проблемных сборок: $FAIL_COUNT"
 
           MESSAGE="🕒 *Отчет о сборках за последний час*\n"
           MESSAGE+="📊 Всего сборок: *$TOTAL*\n"
@@ -60,13 +63,17 @@ jobs:
             MESSAGE+="❌ *Проблемные сборки: $FAIL_COUNT*\n"
 
             FAIL_LIST=""
-            echo "$FAILURES" | jq -c '.[]' | while read line; do
-              NAME=$(echo "$line" | jq -r '.name // "Неизвестный workflow"')
-              BRANCH=$(echo "$line" | jq -r '.branch // "Неизвестная ветка"')
-              URL=$(echo "$line" | jq -r '.html_url // "Нет ссылки"')
-              TRIGGERED_BY=$(echo "$line" | jq -r '.triggered_by // "Неизвестный"')
+            echo "🔍 Данные об ошибках:"
+            echo "$FAILURES" | jq '.[]'
 
-              # Экранируем спецсимволы для Telegram Markdown
+            echo "$FAILURES" | jq -r '.[] | @base64' | while IFS= read -r line; do
+              JSON=$(echo "$line" | base64 --decode)
+              NAME=$(echo "$JSON" | jq -r '.name // "Неизвестный workflow"')
+              BRANCH=$(echo "$JSON" | jq -r '.branch // "Неизвестная ветка"')
+              URL=$(echo "$JSON" | jq -r '.html_url // "Нет ссылки"')
+              TRIGGERED_BY=$(echo "$JSON" | jq -r '.triggered_by // "Неизвестный"')
+
+              # Экранируем символы Markdown
               NAME=$(echo "$NAME" | sed 's/_/\\_/g')
               BRANCH=$(echo "$BRANCH" | sed 's/_/\\_/g')
               TRIGGERED_BY=$(echo "$TRIGGERED_BY" | sed 's/_/\\_/g')
@@ -87,4 +94,5 @@ jobs:
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
 
