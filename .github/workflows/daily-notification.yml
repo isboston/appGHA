@@ -2,7 +2,7 @@ name: Daily Notification
 
 on:
   schedule:
-    - cron: "0 11 * * *" # Запускается каждый день в 10:00 UTC
+    - cron: "0 7 * * *" # Запускается каждый день в 10:00 UTC
 
 jobs:
   notify-failures:

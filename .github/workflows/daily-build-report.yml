@@ -2,7 +2,7 @@ name: Hourly Build Report
 
 on:
   schedule:
-    - cron: "0 * * * *"  # Раз в час
+    - cron: "5 * * * *"  # Раз в час
   workflow_dispatch:
 
 jobs:
