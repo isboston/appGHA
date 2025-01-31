@@ -3,7 +3,7 @@ name: OCI OCI
 on:
   push:
     branches:
-      - main
+      - develop
 
 jobs:
   testing:
