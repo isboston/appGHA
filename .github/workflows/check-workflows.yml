@@ -46,7 +46,8 @@ jobs:
 
           TOTAL=$(jq 'length' merged_results.json)
           # Фильтруем только неудачные сборки
-          FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress" and .html_url != null)]' merged_results.json)
+          FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure")
+            and .status != "in_progress" and .conclusion != null)]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           
           MESSAGE="🕒 *Отчёт за последние 24 часа*\n"
