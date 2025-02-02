@@ -1,8 +1,8 @@
 name: Daily Failed Actions Report
 
 on:
-  schedule:
-    - cron: '0 10 * * *'  # Every day at 10:00 UTC
+  # schedule:
+  #   - cron: '0 10 * * *'  # Every day at 10:00 UTC
   workflow_dispatch:  # Возможность запустить вручную
 
 jobs:
