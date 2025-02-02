@@ -31,7 +31,7 @@ jobs:
           echo "Исключаем текущий workflow run с ID $CURRENT_RUN_ID"
 
           # Фильтруем результат, исключая текущий workflow
-          jq --arg current_run_id "$CURRENT_RUN_ID" '[.workflow_runs[] | select(.id != ($current_run_id | tonumber))]' workflow_runs.json > filtered_workflow_runs.json
+          jq --arg current_run_id "$CURRENT_RUN_ID" '[.[] | select(.id != ($current_run_id | tonumber))]' workflow_runs.json > filtered_workflow_runs.json
 
           echo "Отфильтрованные данные:"
           cat filtered_workflow_runs.json
