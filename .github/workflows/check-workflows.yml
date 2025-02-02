@@ -1,4 +1,4 @@
-name: Daily Check Workflows
+name: Check Workflows
 
 on:
   schedule:
