@@ -53,9 +53,13 @@ jobs:
 
           TOTAL=$(jq 'length' merged_results.json)
 
-          FAILURES=$(echo "$FILTERED_RESULTS" | jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]')
-          echo "$FAILURES"
+          LAST_RUN_ID=$(jq '.[0].id' merged_results.json)
+          echo "ID последнего экшена: $LAST_RUN_ID"
+
+          # Фильтруем неудачные сборки
+          FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
+          echo "Неудачных сборок: $FAIL_COUNT"
           MESSAGE="🕒 *Отчёт за последние 24 часа*\n"
           MESSAGE+="📊 Всего сборок: *$TOTAL*\n"
 
