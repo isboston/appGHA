@@ -1,4 +1,4 @@
-name: Daily check for failed workflows
+name: Daily Check Workflows
 
 on:
   schedule:
