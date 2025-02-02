@@ -1,4 +1,4 @@
-name: Notify Telegram on Failure
+name: Daily check for failed workflows
 
 on:
   schedule:
