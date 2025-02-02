@@ -26,11 +26,18 @@ jobs:
             jq --arg start "$START_TIME" --arg end "$END_TIME" \
             '[.workflow_runs[] | select(.created_at >= $start and .created_at <= $end)]' > workflow_runs.json
 
-          echo "Полученные данные:"
-          cat workflow_runs.json
+          # Сохраняем ID текущего workflow run
+          CURRENT_RUN_ID="${{ github.run_id }}"
+          echo "Исключаем текущий workflow run с ID $CURRENT_RUN_ID"
+
+          # Фильтруем результат, исключая текущий workflow
+          jq --arg current_run_id "$CURRENT_RUN_ID" '[.workflow_runs[] | select(.id != ($current_run_id | tonumber))]' workflow_runs.json > filtered_workflow_runs.json
+
+          echo "Отфильтрованные данные:"
+          cat filtered_workflow_runs.json
 
           # Формирование JSON с нужными полями и установкой статуса (если статус отсутствует, считаем за неудачный)
-          jq '[.[] | {name: .name, branch: .head_branch, html_url: .html_url, status: (.conclusion // "failure"), triggered_by: (.triggering_actor.login // "unknown")}]' workflow_runs.json > merged_results.json
+          jq '[.[] | {name: .name, branch: .head_branch, html_url: .html_url, status: (.conclusion // "failure"), triggered_by: (.triggering_actor.login // "unknown")}]' filtered_workflow_runs.json > merged_results.json
           echo "Итоговые данные:"
           cat merged_results.json
 
@@ -45,17 +52,6 @@ jobs:
           fi
 
           TOTAL=$(jq 'length' merged_results.json)
-
-          LAST_RUN_ID=$(jq '.[0].id' merged_results.json)
-          echo "ID последнего экшена: $LAST_RUN_ID"
-
-           # Фильтруем только завершенные экшены (не "queued" и не "in_progress")
-          FILTERED_RESULTS=$(jq '[.[] | select(.status != "queued" and .status != "in_progress")]' merged_results.json)
-
-          # Исключаем последний экшен (который выполняется сейчас)
-          FILTERED_RESULTS=$(echo "$FILTERED_RESULTS" | jq '[.[] | select(.id != '"$LAST_RUN_ID"')]')
-
-          # Фильтруем только неудачные сборки
 
           FAILURES=$(echo "$FILTERED_RESULTS" | jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]')
           echo "$FAILURES"
