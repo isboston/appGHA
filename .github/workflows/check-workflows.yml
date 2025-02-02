@@ -45,15 +45,27 @@ jobs:
           fi
 
           TOTAL=$(jq 'length' merged_results.json)
+
+          LAST_RUN_ID=$(jq '.[0].id' merged_results.json)
+          echo "ID последнего экшена: $LAST_RUN_ID"
+
+           # Фильтруем только завершенные экшены (не "queued" и не "in_progress")
+          FILTERED_RESULTS=$(jq '[.[] | select(.status != "queued" and .status != "in_progress")]' merged_results.json)
+
+          # Исключаем последний экшен (который выполняется сейчас)
+          FILTERED_RESULTS=$(echo "$FILTERED_RESULTS" | jq '[.[] | select(.id != '"$LAST_RUN_ID"')]')
+
           # Фильтруем только неудачные сборки
-          FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
+
+          FAILURES=$(echo "$FILTERED_RESULTS" | jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]')
           echo "$FAILURES"
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           MESSAGE="🕒 *Отчёт за последние 24 часа*\n"
           MESSAGE+="📊 Всего сборок: *$TOTAL*\n"
 
           if [ "$FAIL_COUNT" -eq 0 ]; then
-            MESSAGE+="✅ *Все сборки успешны!* 🎉\n"
+            echo "Все сборки успешны. Отправка отчета отменена."
+            exit 0  # Если нет неудачных сборок, не отправлять уведомление
           else
             MESSAGE+="❌ *Проблемные сборки: $FAIL_COUNT*\n\n"
             # Формируем список ошибок с данными о workflow
