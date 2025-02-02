@@ -12,10 +12,6 @@ jobs:
       - name: Print Hello Message
         run: echo "Hello world from Testing job"
 
-      - name: List current folder
-        run: |
-          ls -la
-          pwd
       - name: Git clone my repo
         uses: actions/checkout@v3
 

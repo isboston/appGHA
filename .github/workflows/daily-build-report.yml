@@ -1,4 +1,4 @@
-name: Hourly Build Report
+name: Notify Telegram on Failure
 
 on:
   # schedule:
