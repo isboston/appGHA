@@ -1,0 +1,22 @@
+name: Upload offline self-extracting archive 
+
+on:
+  push:
+    branches:
+      - develop
+      - hotfix/v3.0.3
+
+jobs:
+  testing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print Hello Message
+        run: echo "Hello world from Testing job"
+      
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [testing]    
+    steps:
+      - name: Simulate failure
+        run: exit 1
+
