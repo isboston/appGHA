@@ -13,36 +13,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check and report workflows
+      - name: Notify failed runs
+        run: |
+          START_TIME=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          # Request last 100 runs
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100" | \
+            jq --arg start "$START_TIME" --arg end "$END_TIME" \
+            '[.workflow_runs[] | select(.created_at >= $start and .created_at <= $end)]' > workflow_runs.json
+          # Exclude current run
+          CURRENT_RUN_ID="${{ github.run_id }}"
+          jq --arg current_run_id "$CURRENT_RUN_ID" '[.[] | select(.id != ($current_run_id | tonumber))]' workflow_runs.json > filtered_workflow_runs.json
+          # Format output
+          jq '[.[] | {name: .name, branch: .head_branch, html_url: .html_url, status: (.conclusion // "failure"), triggered_by: (.triggering_actor.login // "unknown"), created_at: .created_at}]' filtered_workflow_runs.json > merged_results.json
+      - name: Report failed to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          # Set the time range for the last 24 hours
-          START_TIME=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
-          END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          CURRENT_RUN_ID=${{ github.run_id }}
-
-          # Fetch workflows, filter by time range and exclude the current run, then format the output
-          OUTPUT=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100" | \
-            jq --arg start "$START_TIME" --arg end "$END_TIME" --arg current_run_id "$CURRENT_RUN_ID" '
-              [.workflow_runs[]
-                | select(.created_at >= $start and .created_at <= $end and (.id != ($current_run_id | tonumber)))
-                | { name, branch: .head_branch, html_url, status: (.conclusion // "failure"), triggered_by: (.triggering_actor.login // "unknown"), created_at }
-              ]
-            ')
-
-          TOTAL=$(echo "$OUTPUT" | jq 'length')
-          [ "$TOTAL" -eq 0 ] && exit 0
-          FAILURES=$(echo "$OUTPUT" | jq '[.[] | select(.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure")]')
+          if [ ! -s merged_results.json ] || [ "$(jq 'length' merged_results.json)" -eq 0 ]; then
+            exit 0
+          fi
+          TOTAL=$(jq 'length' merged_results.json)
+          FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           [ "$FAIL_COUNT" -eq 0 ] && exit 0
-
           MESSAGE="🕒 Last 24h | 📊 Workflows: $TOTAL | ❌ *Failed: $FAIL_COUNT*\n"
-          FAIL_LIST=$(echo "$FAILURES" | jq -r 'map("🔹 [\(.name | if length > 25 then .[0:25] + \"...\" else . end)](\(.html_url)) | 📌 \(.branch)") | join("\n")')
+          FAIL_LIST=$(echo "$FAILURES" | jq -r $'
+            map(
+              "🔹 [\(.name | if length > 25 then .[0:25] + \"...\" else . end)](\(.html_url)) | 📌 \(.branch)"
+            ) | join("\n")
+          ')
           MESSAGE+="$FAIL_LIST"
-
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
