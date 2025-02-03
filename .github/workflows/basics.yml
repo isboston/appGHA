@@ -6,7 +6,7 @@ env:
 on:
   push:
     branches:
-      - develop
+      - main
 
 jobs:
   testing:
@@ -15,23 +15,23 @@ jobs:
       - name: Print Hello Message
         run: echo "Hello world from Testing job"
       
-      - name: Execute a few commands
-        run: |
-          echo "Hello Message1"
-          echo "Hello Message2"
-          echo "Application name: ${{ env.APPLICATION_NAME }}"
+      # - name: Execute a few commands
+      #   run: |
+      #     echo "Hello Message1"
+      #     echo "Hello Message2"
+      #     echo "Application name: ${{ env.APPLICATION_NAME }}"
         
-      - name: List current folder
-        run: |
-          ls -la
-          pwd
-      - name: Git clone my repo
-        uses: actions/checkout@v3
+      # - name: List current folder
+      #   run: |
+      #     ls -la
+      #     pwd
+      # - name: Git clone my repo
+      #   uses: actions/checkout@v3
 
-      - name: List folder after clone
-        run: |
-          ls -la
-          pwd
+      # - name: List folder after clone
+      #   run: |
+      #     ls -la
+      #     pwd
   deploy:
     runs-on: ubuntu-latest
     needs: [testing]
@@ -40,37 +40,37 @@ jobs:
       VAR2: "This is Job Level Variable2"
     
     steps:
-      - name: Print Hello Message
-        run: echo "Hello world from Deploy job"
+      # - name: Print Hello Message
+      #   run: echo "Hello world from Deploy job"
 
-      - name: Print env vars
-        run: |
-          echo "Var1 = ${{ env.VAR1 }}"
-          echo "Var2 = ${{ env.VAR2 }}"
-          echo "Var3 = $LOCAL_VAR"
-        env:
-          LOCAL_VAR: "This is super local Environment variable"
+      # - name: Print env vars
+      #   run: |
+      #     echo "Var1 = ${{ env.VAR1 }}"
+      #     echo "Var2 = ${{ env.VAR2 }}"
+      #     echo "Var3 = $LOCAL_VAR"
+      #   env:
+      #     LOCAL_VAR: "This is super local Environment variable"
       
-      - name: Print Deployment package
-        run: echo "Deploy package name is ${{ env.DEPLOY_PACKAGE_NAME }}"
+      # - name: Print Deployment package
+      #   run: echo "Deploy package name is ${{ env.DEPLOY_PACKAGE_NAME }}"
 
       - name: Simulate failure
         run: exit 1
 
-  telegram-notify:
-    if: always()
-    needs: [deploy]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Telegram Notification on failed
-        if: ${{ needs.deploy.result == 'failure' }}
-        run: |
-          curl -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-          -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "${{ secrets.TELEGRAM_CHAT_ID }}",
-            "parse_mode": "Markdown",
-            "disable_web_page_preview": true,
-            "text": "❌ ${{ github.workflow }} failed in repository ${{ github.repository }}\n🔗 More info: [View details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n📌 Branch: `${{ github.ref_name }}`\n📝 Commit: `${{ github.event.head_commit.message }}`\n🧑‍💻 Author: ${{ github.actor }}"
-          }'
+  # telegram-notify:
+  #   if: always()
+  #   needs: [deploy]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Send Telegram Notification on failed
+  #       if: ${{ needs.deploy.result == 'failure' }}
+  #       run: |
+  #         curl -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+  #         -H "Content-Type: application/json" \
+  #         -d '{
+  #           "chat_id": "${{ secrets.TELEGRAM_CHAT_ID }}",
+  #           "parse_mode": "Markdown",
+  #           "disable_web_page_preview": true,
+  #           "text": "❌ ${{ github.workflow }} failed in repository ${{ github.repository }}\n🔗 More info: [View details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n📌 Branch: `${{ github.ref_name }}`\n📝 Commit: `${{ github.event.head_commit.message }}`\n🧑‍💻 Author: ${{ github.actor }}"
+  #         }'
 
