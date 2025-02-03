@@ -16,7 +16,7 @@ jobs:
         run: |
           START=$(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ)
           API="https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100"
-          
+
           FAILURES=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API" | jq --arg start "$START" --arg cur "${{ github.run_id }}" '
               [ .workflow_runs[] | select(.created_at >= $start and .id != ($cur | tonumber)) | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure")) ]')
 
