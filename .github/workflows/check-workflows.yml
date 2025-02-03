@@ -47,13 +47,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ ! -s merged_results.json ] || [ "$(jq 'length' merged_results.json)" -eq 0 ]; then
-            echo "За указанный период нет завершённых сборок."
             exit 0
           fi
 
           TOTAL=$(jq 'length' merged_results.json)
           LAST_RUN_ID=$(jq '.[0].id' merged_results.json)
-          echo "ID последнего экшена: $LAST_RUN_ID"
 
           # Фильтруем неудачные сборки
           FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
@@ -66,15 +64,7 @@ jobs:
           else
             FAIL_LIST=$(echo "$FAILURES" | jq -r $'
               map(
-                "🔹 [\(.name | if length > 20 then .[0:20] + \"...\" else . end)](\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | ⏳ \(
-                  (.created_at | fromdateiso8601) as $created |
-                  (now - $created) as $diff |
-                  if $diff < 3600 then
-                    ($diff / 60 | floor | tostring + \"m ago\")
-                  else
-                    ($diff / 3600 | floor | tostring + \"h ago\")
-                  end
-                )"
+                "🔹 [\(.name | if length > 20 then .[0:20] + \"...\" else . end)](\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\")"
               ) | join("\n")
             ')
             MESSAGE+="$FAIL_LIST"
