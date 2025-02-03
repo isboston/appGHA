@@ -71,7 +71,7 @@ jobs:
             # Формируем список ошибок с данными о workflow
             FAIL_LIST=$(echo "$FAILURES" | jq -r $'
               map(
-                "🔹 [\(.name // \"Неизвестный workflow\")] (\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | 🕒 \(.created_at | select(. != null) | fromdateiso8601 | strftime("%H:%M"))"
+                "🔹 [\(.name // \"Неизвестный workflow\")](\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | 🕒 \(.created_at | select(. != null) | fromdateiso8601 | strftime("%H:%M"))"
               ) | join("\n")
             ')
             MESSAGE+="$FAIL_LIST"
