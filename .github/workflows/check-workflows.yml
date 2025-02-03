@@ -37,7 +37,7 @@ jobs:
           cat filtered_workflow_runs.json
 
           # Формирование JSON с нужными полями и установкой статуса (если статус отсутствует, считаем за неудачный)
-          jq '[.[] | {name: .name, branch: .head_branch, html_url: .html_url, status: (.conclusion // "failure"), triggered_by: (.triggering_actor.login // "unknown")}]' filtered_workflow_runs.json > merged_results.json
+          jq '[.[] | {name: .name, branch: .head_branch, html_url: .html_url, status: (.conclusion // "failure"), triggered_by: (.triggering_actor.login // "unknown"), created_at: .created_at}]' filtered_workflow_runs.json > merged_results.json
           echo "Итоговые данные:"
           cat merged_results.json
 
@@ -71,7 +71,7 @@ jobs:
             # Формируем список ошибок с данными о workflow
             FAIL_LIST=$(echo "$FAILURES" | jq -r $'
               map(
-                "🔹 *\(.name // \"Неизвестный workflow\")* | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | 🕒 \(.created_at | fromdateiso8601 | strftime("%H:%M")) | 🔗 [Лог](\(.html_url // \"Нет ссылки\"))"
+                "🔹 *\(.name // \"Неизвестный workflow\")* | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | 🕒 \(.created_at | select(. != null) | fromdateiso8601 | strftime("%H:%M")) | 🔗 [Лог](\(.html_url // \"Нет ссылки\"))"
               ) | join("\n")
             ')
             MESSAGE+="$FAIL_LIST"
