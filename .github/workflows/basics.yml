@@ -35,9 +35,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [testing]
-    env:
-      VAR1: "This is Job Level Variable1"
-      VAR2: "This is Job Level Variable2"
+    # env:
+    #   VAR1: "This is Job Level Variable1"
+    #   VAR2: "This is Job Level Variable2"
     
     steps:
       # - name: Print Hello Message
