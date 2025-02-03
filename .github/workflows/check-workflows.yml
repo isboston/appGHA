@@ -2,7 +2,7 @@ name: Check Workflows
 
 on:
   schedule:
-    - cron: "5 0 * * *"
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,35 +13,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Получаем информацию о workflow runs за последние 24 часа
+      - name: Check workflows last 24h
         run: |
-          # Определяем период: последние 24 часа от текущего момента
           START_TIME=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
           END_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          echo "Запрашиваем workflow runs с $START_TIME по $END_TIME"
 
-          # Запрос последних 100 запусков (при необходимости можно реализовать постраничный запрос)
+          # Request last 100 runs
           curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100" | \
             jq --arg start "$START_TIME" --arg end "$END_TIME" \
             '[.workflow_runs[] | select(.created_at >= $start and .created_at <= $end)]' > workflow_runs.json
 
-          # Сохраняем ID текущего workflow run
+          # Exclude current run
           CURRENT_RUN_ID="${{ github.run_id }}"
-          echo "Исключаем текущий workflow run с ID $CURRENT_RUN_ID"
-
-          # Фильтруем результат, исключая текущий workflow
           jq --arg current_run_id "$CURRENT_RUN_ID" '[.[] | select(.id != ($current_run_id | tonumber))]' workflow_runs.json > filtered_workflow_runs.json
 
-          echo "Отфильтрованные данные:"
-          cat filtered_workflow_runs.json
-
-          # Формирование JSON с нужными полями и установкой статуса (если статус отсутствует, считаем за неудачный)
+          # Format output
           jq '[.[] | {name: .name, branch: .head_branch, html_url: .html_url, status: (.conclusion // "failure"), triggered_by: (.triggering_actor.login // "unknown"), created_at: .created_at}]' filtered_workflow_runs.json > merged_results.json
-          echo "Итоговые данные:"
-          cat merged_results.json
 
-      - name: Отправляем отчёт в Telegram, если есть ошибки
+      - name: Report failed to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -51,9 +41,6 @@ jobs:
           fi
 
           TOTAL=$(jq 'length' merged_results.json)
-          LAST_RUN_ID=$(jq '.[0].id' merged_results.json)
-
-          # Фильтруем неудачные сборки
           FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
 
