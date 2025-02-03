@@ -60,15 +60,13 @@ jobs:
           FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           echo "Неудачных сборок: $FAIL_COUNT"
-          MESSAGE="🕒 *Отчёт за последние 24 часа*\n"
-          MESSAGE+="📊 Всего сборок: *$TOTAL*\n"
+          MESSAGE="🕒 *Report for the last 24 hours*\n"
+          MESSAGE+="📊 Total workflows: *$TOTAL*\n"
 
           if [ "$FAIL_COUNT" -eq 0 ]; then
-            echo "Все сборки успешны. Отправка отчета отменена."
-            exit 0  # Если нет неудачных сборок, не отправлять уведомление
+            exit 0
           else
-            MESSAGE+="❌ *Проблемные сборки: $FAIL_COUNT*\n\n"
-            # Формируем список ошибок с данными о workflow
+            MESSAGE+="❌ *Issues: $FAIL_COUNT*\n\n"
             FAIL_LIST=$(echo "$FAILURES" | jq -r $'
               map(
                 "🔹 [\(.name | if length > 20 then .[0:20] + \"...\" else . end)](\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | ⏳ \(
@@ -76,9 +74,9 @@ jobs:
                   if . != null then
                     (now - .) |
                     if . < 3600 then
-                      ( . / 60 | floor | tostring + " minutes ago")
+                      ( . / 60 | floor | tostring + "m ago")
                     else
-                      ( . / 3600 | floor | tostring + " hours ago")
+                      ( . / 3600 | floor | tostring + "h ago")
                     end
                   end
                 )"
