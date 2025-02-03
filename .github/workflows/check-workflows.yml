@@ -70,10 +70,22 @@ jobs:
             MESSAGE+="❌ *Проблемные сборки: $FAIL_COUNT*\n\n"
             # Формируем список ошибок с данными о workflow
             FAIL_LIST=$(echo "$FAILURES" | jq -r $'
-                  map(
-                    "🔹 [\(.name // "Неизвестный workflow")](\(.html_url // "Нет ссылки")) | 📌 \(.branch // "Неизвестная ветка") | 👤 \(.triggered_by // "Неизвестный") | 🕒 \(.created_at | select(. != null) | fromdateiso8601 | strftime("%H:%M")) | ⏳ \(.created_at | fromdateiso8601 | strftime("%s") | tonumber | if . != null then ((now - .) / 3600 | floor | tostring + " часов назад") else "Неизвестно" end)"
-                  ) | join("\n")
-                ')
+              map(
+                "🔹 [\(.name // \"Неизвестный workflow\")](\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | ⏳ \(
+                  .created_at | fromdateiso8601 | strftime("%s") | tonumber |
+                  if . != null then
+                    (now - .) |
+                    if . < 3600 then
+                      ( . / 60 | floor | tostring + " минут назад")
+                    else
+                      ( . / 3600 | floor | tostring + " часов назад")
+                    end
+                  else
+                    "Неизвестно"
+                  end
+                )"
+              ) | join("\n")
+            ')
             MESSAGE+="$FAIL_LIST"
           fi
 
