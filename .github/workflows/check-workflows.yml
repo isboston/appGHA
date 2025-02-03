@@ -23,7 +23,7 @@ jobs:
 
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-          MESSAGE=$(printf "🕒 Last 24 hours in repository %s: ❌ Failed: %s\n%s" \
+          MESSAGE=$(printf "🕒 Last 24h in %s: ❌ %s workflows failed\n%s" \
             "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
             "$(jq -r '[.[] | "🔹 [\(.name[:30] + (if .name | length > 30 then "..." else "" end))](\(.html_url)) | 📌 \(.head_branch)"] | join("\n")' <<< "$FAILURES")")
 
