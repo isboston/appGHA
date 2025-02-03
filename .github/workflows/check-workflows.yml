@@ -26,19 +26,22 @@ jobs:
           MESSAGE="🕒 24h in ${{ github.repository }}: ❌ *$(jq 'length' <<< "$FAILURES") FAILED*\n\n"
 
           while IFS= read -r line; do
-            NAME=$(echo "$line" | jq -r '.name' | cut -c1-30)
+            NAME=$(echo "$line" | jq -r '.name')
             URL=$(echo "$line" | jq -r '.html_url')
             BRANCH=$(echo "$line" | jq -r '.head_branch')
 
-            printf -v ENTRY "🔹 [%-30s](%s) | 📌 %-12s\n" "$NAME" "$URL" "$BRANCH"
+            if [[ ${#NAME} -gt 30 ]]; then
+              NAME="${NAME:0:27}..."
+            fi
+
+            printf -v ENTRY "🔹 [%-30s](%s) | 📌 %-15s\n" "$NAME" "$URL" "$BRANCH"
             MESSAGE+="$ENTRY"
           done < <(echo "$FAILURES" | jq -c '.[]')
 
           echo -e "$MESSAGE"
 
-          CLEAN_MESSAGE=$(echo "$MESSAGE" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+          CLEAN_MESSAGE=$(echo "$MESSAGE" | jq -Rr @sh)
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$CLEAN_MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
-
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": $CLEAN_MESSAGE, \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
