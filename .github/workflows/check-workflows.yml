@@ -17,11 +17,11 @@ jobs:
           # Get time window (last 24h)
           START_TIME=$(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ)
           END_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          
+
           # Fetch runs (last 100)
           RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100")
-          
+
           # Filter runs within time window, excluding current
           FILTERED=$(echo "$RESPONSE" | jq --arg start "$START_TIME" --arg end "$END_TIME" --arg cur "${{ github.run_id }}" '
             [ .workflow_runs[]
@@ -29,22 +29,17 @@ jobs:
               | select(.id != ($cur | tonumber))
             ]
           ')
-          
-          # Count total filtered runs
+
           TOTAL=$(echo "$FILTERED" | jq 'length')
-          
-          # Extract failures
+
           FAILURES=$(echo "$FILTERED" | jq '
             [ .[]
               | select((.conclusion // "failure") | test("failure|failed|error|startup_failure"))
             ]
           ')
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
-
-          # Skip if no failures
           [ "$FAIL_COUNT" -eq 0 ] && exit 0
-          
-          # Build message
+
           MESSAGE="🕒 Last 24h | 📊 Workflows: $TOTAL | ❌ *Failed: $FAIL_COUNT*\n"
           FAIL_LIST=$(echo "$FAILURES" | jq -r $'
             map("🔹 [\(.name | if length > 25 then .[0:25] + \"...\" else . end)](\(.html_url)) | 📌 \(.head_branch)") | join("\n")')
