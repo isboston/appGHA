@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  check-workflows:
+  check-failed-workflows:
     runs-on: ubuntu-latest
     steps:
       - name: Notify failed runs
@@ -14,27 +14,19 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          # Get time (last 24h)
-          START_TIME=$(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ)
+          START=$(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ)
+          API="https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100"
+          
+          FAILURES=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API" | 
+            jq --arg start "$START" --arg cur "${{ github.run_id }}" '
+              [ .workflow_runs[] | select(.created_at >= $start and .id != ($cur | tonumber)) | 
+                select((.conclusion? // "failure") | test("failure|failed|error|startup_failure")) ]')
 
-          # Fetch runs (last 100)
-          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100")
+          [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-          FAILURES=$(echo "$RESPONSE" | jq --arg start "$START_TIME" --arg cur "${{ github.run_id }}" '
-            [ .workflow_runs[]
-              | select(.created_at >= $start and .id != ($cur | tonumber))
-              | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
-            ]
-          ')
-
-          FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
-          [ "$FAIL_COUNT" -eq 0 ] && exit 0
-
-          MESSAGE="🕒 Last 24h | 📊 Workflows: $TOTAL | ❌ *Failed: $FAIL_COUNT*\n"
+          MESSAGE="🕒 Last 24h | ❌ *Failed: $(echo "$FAILURES" | jq 'length')*\n"
           MESSAGE+=$(echo "$FAILURES" | jq -r '
-            map("🔹 [\(.name[:25] + (if .name | length > 25 then "..." else "" end))](\(.html_url)) | 📌 \(.head_branch)") | join("\n")'
-          )
+            map("🔹 [\(.name[:25] + (if .name | length > 25 then "..." else "" end))](\(.html_url)) | 📌 \(.head_branch)") | join("\n")')
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
