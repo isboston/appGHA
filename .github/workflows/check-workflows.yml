@@ -2,7 +2,7 @@ name: Check Workflows
 
 on:
   schedule:
-    - cron: "5 0 * * *"  # Запуск каждый день в 00:05 UTC
+    - cron: "5 0 * * *"
   workflow_dispatch:
 
 jobs:
@@ -52,7 +52,6 @@ jobs:
           fi
 
           TOTAL=$(jq 'length' merged_results.json)
-
           LAST_RUN_ID=$(jq '.[0].id' merged_results.json)
           echo "ID последнего экшена: $LAST_RUN_ID"
 
@@ -68,14 +67,12 @@ jobs:
             FAIL_LIST=$(echo "$FAILURES" | jq -r $'
               map(
                 "🔹 [\(.name | if length > 20 then .[0:20] + \"...\" else . end)](\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | ⏳ \(
-                  .created_at | fromdateiso8601 | strftime("%s") | tonumber |
-                  if . != null then
-                    (now - .) |
-                    if . < 3600 then
-                      ( . / 60 | floor | tostring + "m ago")
-                    else
-                      ( . / 3600 | floor | tostring + "h ago")
-                    end
+                  (.created_at | fromdateiso8601) as $created |
+                  (now - $created) as $diff |
+                  if $diff < 3600 then
+                    ($diff / 60 | floor | tostring + \"m ago\")
+                  else
+                    ($diff / 3600 | floor | tostring + \"h ago\")
                   end
                 )"
               ) | join("\n")
@@ -83,7 +80,7 @@ jobs:
             MESSAGE+="$FAIL_LIST"
           fi
 
-          # Отправка сообщения в Telegram
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
