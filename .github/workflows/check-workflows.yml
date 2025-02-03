@@ -19,7 +19,7 @@ jobs:
             jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --arg cur "${{ github.run_id }}" '
             [ .workflow_runs[] | select(.created_at >= $start and .id != ($cur | tonumber)) 
               | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
-              | select(.head_branch | test("^(master|release/.+|hotfix/.+|develop)$"))
+              | select(.head_branch | test("^(master|release/.+|hotfix/.+|develop)$")) ]')
 
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
