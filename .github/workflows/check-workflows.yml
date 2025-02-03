@@ -60,13 +60,13 @@ jobs:
           FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           echo "Неудачных сборок: $FAIL_COUNT"
-          MESSAGE="🕒 *Report for the last 24 hours*\n"
+          MESSAGE="🕒 *Last 24h*\n"
           MESSAGE+="📊 Total workflows: *$TOTAL*\n"
 
           if [ "$FAIL_COUNT" -eq 0 ]; then
             exit 0
           else
-            MESSAGE+="❌ *Issues: $FAIL_COUNT*\n\n"
+            MESSAGE+="❌ *Failed: $FAIL_COUNT*\n\n"
             FAIL_LIST=$(echo "$FAILURES" | jq -r $'
               map(
                 "🔹 [\(.name | if length > 20 then .[0:20] + \"...\" else . end)](\(.html_url // \"Нет ссылки\")) | 📌 \(.branch // \"Неизвестная ветка\") | 👤 \(.triggered_by // \"Неизвестный\") | ⏳ \(
