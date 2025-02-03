@@ -47,7 +47,7 @@ jobs:
           # Build message
           MESSAGE="🕒 Last 24h | 📊 Workflows: $TOTAL | ❌ *Failed: $FAIL_COUNT*\n"
           FAIL_LIST=$(echo "$FAILURES" | jq -r $'
-            map("🔹 [\(.name | if length > 25 then .[0:25] + \"...\" else . end)](\(.html_url)) | 📌 \(.branch)") | join("\n")')
+            map("🔹 [\(.name | if length > 25 then .[0:25] + \"...\" else . end)](\(.html_url)) | 📌 \(.head_branch)") | join("\n")')
           MESSAGE+="$FAIL_LIST"
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
