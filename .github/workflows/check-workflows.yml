@@ -23,14 +23,17 @@ jobs:
 
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-          MESSAGE="🕒 24h in ${{ github.repository }}: ❌ *$(jq 'length' <<< "$FAILURES") FAILED*\n"
-          while IFS= read -r line; do
+          MESSAGE="🕒 24h in ${{ github.repository }}: ❌ *$(jq 'length' <<< "$FAILURES") FAILED*\n\n"
+
+          echo "$FAILURES" | jq -c '.[]' | while IFS= read -r line; do
             NAME=$(echo "$line" | jq -r '.name[:30] + (if (.name | length) > 30 then "..." else "" end)')
             URL=$(echo "$line" | jq -r '.html_url')
             BRANCH=$(echo "$line" | jq -r '.head_branch')
 
-            MESSAGE+=$(printf "🔹 [%-35s](%s) | 📌 %-12s\n" "$NAME" "$URL" "$BRANCH")
-          done < <(echo "$FAILURES" | jq -c '.[]')
+            MESSAGE+="🔹 [%-35s](%s) | 📌 %-12s\n" "$NAME" "$URL" "$BRANCH"
+          done
+
+          echo -e "$MESSAGE"
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
