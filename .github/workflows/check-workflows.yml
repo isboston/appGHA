@@ -60,7 +60,7 @@ jobs:
           FAILURES=$(jq '[.[] | select((.status == "failure" or .status == "failed" or .status == "error" or .status == "startup_failure") and .status != "in_progress")]' merged_results.json)
           FAIL_COUNT=$(echo "$FAILURES" | jq 'length')
           
-          MESSAGE="🕒 Last 24h | 📊 Workflows: $TOTAL | ❌ Failed: $FAIL_COUNT\n"
+          MESSAGE="🕒 Last 24h | 📊 Workflows: $TOTAL | ❌ *Failed: $FAIL_COUNT*\n"
 
           if [ "$FAIL_COUNT" -eq 0 ]; then
             exit 0
