@@ -26,8 +26,8 @@ jobs:
           MESSAGE="🕒 24h in ${{ github.repository }}: ❌ *$(jq 'length' <<< "$FAILURES") FAILED*\n"
           MESSAGE+=$(jq -r '
             .[] | 
-            "\(.name[:20] + (if .name | length > 20 then "..." else "" end))|\(.html_url)|\(.head_branch)"' <<< "$FAILURES" |
-            awk -F'|' '{ printf "🔹 [%-30s](%s) | 📌 %-15s\n", $1, $2, substr($3, 1, 15) }')
+            "\(.name[:27] + (if .name | length > 27 then "..." else "" end))|\(.html_url)|\(.head_branch)"' <<< "$FAILURES" |
+            awk -F'|' '{ printf "🔹 %-30s | 📌 %-15s\n", "[" $1 "](" $2 ")", substr($3, 1, 15) }')
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
