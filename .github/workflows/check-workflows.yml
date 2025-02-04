@@ -23,13 +23,24 @@ jobs:
 
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-          MESSAGE="🕒 24h in ${{ github.repository }}: ❌ *$(jq 'length' <<< "$FAILURES") FAILED*\n"
-          MESSAGE+=$(jq -r '
-            .[] | 
-            "\(.name[:27] + (if .name | length > 27 then "..." else "" end))|\(.html_url)|\(.head_branch)"' <<< "$FAILURES" |
-            awk -F'|' '{ printf "🔹 %-10s| 📌 %-15s\n", "[" $1 "](" $2 ")", substr($3, 1, 15) }')
+          MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
+          "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
+          "$(jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --arg cur "${{ github.run_id }}" '
+            # Функция для повторения строки n раз
+            def repeat(s; n): if n <= 0 then "" else s + repeat(s; n - 1) end;
+            [
+              .workflow_runs[]
+              | select(.created_at >= $start and .id != ($cur | tonumber))
+              | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
+              | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))
+              | 
+              "🔹 [\(if (.name | length) > 30 
+                    then (.name[:27] + "...")
+                    else (.name + repeat(" "; 30 - (.name | length)))
+                  end)](\(.html_url)) | 📌 \(.head_branch)"
+            ] | join("\n")
+          ' <<< "$FAILURES")")
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
-
