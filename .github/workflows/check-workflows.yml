@@ -20,7 +20,7 @@ jobs:
           [ .workflow_runs[]
             | select(.created_at >= $start and .id != ($cur | tonumber))
             | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
-            | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))
+            | select(.head_branch? and (.head_branch | test("^(main|release/.+|hotfix/.+|develop)$")))
           ]
           ')
         [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
@@ -39,8 +39,8 @@ jobs:
             | (if $spacesNeeded < 0 then 0 else $spacesNeeded end) as $spaces
             # Формируем имя экшена с выравниванием
             | "[🔹 " + $trimName + ("                                    ")[0:$spaces] + "](\(.html_url))"
-            # Формируем фиксированную ветку (15 символов, пробелы дополняются справа)
-            | . + " | 📌 `" + (.head_branch[:15] + ("               ")[0:(15 - (.head_branch | length))]) + "`"
+            # Проверяем, есть ли branch, иначе используем `unknown`
+            | . + " | 📌 `" + (if .head_branch? then .head_branch[:15] + ("               ")[0:(15 - (.head_branch | length))] else "unknown       " end) + "`"
           ) | join("\n")
           ' <<< "$FAILURES"
         )
@@ -50,5 +50,6 @@ jobs:
         curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
           -H "Content-Type: application/json" \
           -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
 
 
