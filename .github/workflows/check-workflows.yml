@@ -26,20 +26,25 @@ jobs:
           MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
           "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
           "$(jq -r '
-            # Функция для повторения символа n раз
+            # Функция для повторения строки n раз
             def repeat(s; n): if n <= 0 then "" else s + repeat(s; n - 1) end;
-            # Перебираем все элементы массива
+
+            # Вычисляем максимальную длину имени (но не больше 25)
+            . as $root | 
+            ($root | map(.name | length) | max) as $max_len | 
+            ($max_len | if . > 25 then 25 else . end) as $fixed_width |
+
+            # Перебираем все элементы массива и форматируем
             map(
               "🔹 [\(
-                  if (.name | length) > 25 
-                  then (.name[:22] + "...")
+                  if (.name | length) > $fixed_width 
+                  then (.name[:($fixed_width - 3)] + "...")
                   else .name
                   end
-                )](\(.html_url))" + repeat(" "; 25 - (.name | length)) + " | 📌 \(.head_branch)"
+                )](\(.html_url))" + repeat(" "; $fixed_width - (.name | length)) + " | 📌 \(.head_branch)"
             )
             | join("\n")
           ' <<< "$FAILURES")")
-
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
