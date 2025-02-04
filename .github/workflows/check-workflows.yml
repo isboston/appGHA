@@ -9,22 +9,46 @@ jobs:
   check-failed-workflows:
     runs-on: ubuntu-latest
     steps:
-      - name: Notify failed runs
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          FAILURES=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100" | 
-            jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --arg cur "${{ github.run_id }}" '
-            [ .workflow_runs[] | select(.created_at >= $start and .id != ($cur | tonumber)) 
-              | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
-              | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$")) ]')
-          [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
-          MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
-            "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
-            "$(jq -r '[.[] | "🔹 [\(.name[:30] + (if .name | length > 30 then "..." else "" end))](\(.html_url)) | 📌 \(.head_branch)"] | join("\n")' <<< "$FAILURES")")
-          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+    - name: Notify failed runs
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: |
+        FAILURES=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100" | 
+          jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --arg cur "${{ github.run_id }}" '
+          [ .workflow_runs[] 
+            | select(.created_at >= $start and .id != ($cur | tonumber)) 
+            | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
+            | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))
+          ]
+          ')
+        [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
+
+        # Формируем монолитное сообщение
+        COUNT="$(jq 'length' <<< "$FAILURES")"
+        HEADER="🕒 24h in ${{ github.repository }}: ❌ *${COUNT} FAILED*"
+        
+        # Делаем аккуратную таблицу с пробелами
+        DETAILS=$(
+          jq -r '
+          map(
+            # Ограничиваем длину имени. Если имя длиннее 30 символов, добавляем "..."
+            # Затем дополняем пробелами до 30 символов, чтобы ветка начиналась в одном столбце
+            .name as $name
+            | ($name[:30] + if ($name|length) > 30 then "..." else "" end) as $trimName
+            | $trimName + ( " " | ljust( (33 - ($trimName|length)); " " ) ) 
+              + "| 📌 " + .head_branch
+              + " → " + .html_url
+          ) | join("\n")
+          ' <<< "$FAILURES"
+        )
+        
+        # Оборачиваем всё в блок кода с тройными бэктиками для моноширинного шрифта
+        MESSAGE="$(printf "%s\n\`\`\`\n%s\n\`\`\`" "$HEADER" "$DETAILS")"
+
+        curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
 
