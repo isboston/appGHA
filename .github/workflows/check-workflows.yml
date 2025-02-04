@@ -23,30 +23,9 @@ jobs:
 
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-          MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
-          "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
-          "$(jq -r '
-            # Вычисляем максимальные длины для колонок
-            . as $root |
-            ($root | map(.name | length) | max) as $name_max |
-            ($root | map(.head_branch | length) | max) as $branch_max |
-            # Для примера можно задать ограничение по ширине имени (если требуется)
-            ($name_max | if . > 30 then 30 else . end) as $fixed_name_width |
-            # Форматируем каждую запись с помощью sprintf:
-            map(
-              # Формат:
-              # %-*s - выравнивание по левому краю в поле заданной ширины
-              # %*s  - выравнивание по правому краю
-              @sprintf("🔹 [%-*s](%s) | 📌 %*s",
-                $fixed_name_width,
-                (.name | if length > $fixed_name_width then .[:($fixed_name_width - 3)] + "..." else . end),
-                .html_url,
-                $branch_max,
-                .head_branch
-              )
-            )
-            | join("\n")
-          ' <<< "$FAILURES")")
+          MESSAGE=$(printf "🕒 24h | %s |❌ *%s FAILED*\n%s" \
+            "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
+            "$(jq -r '[.[] | "🔹 [\(.name[:10] + (if .name | length > 15 then "..." else "" end))](\(.html_url)) (\(.head_branch))"] | join("\n")' <<< "$FAILURES")")
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
