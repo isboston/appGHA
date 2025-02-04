@@ -26,27 +26,26 @@ jobs:
           MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
           "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
           "$(jq -r '
-            # Функция для повторения пробела n раз
             def repeat(s; n): if n <= 0 then "" else s + repeat(s; n - 1) end;
 
-            # Определяем максимальную длину имени экшена (но не больше 25 символов)
-            . as $root | 
-            ($root | map(.name | length) | max) as $max_name_len | 
-            ($max_name_len | if . > 25 then 25 else . end) as $fixed_name_width |
+            def visual_length(s):
+              reduce (s | split(""))[] as $char (0; . +
+                if $char == "i" or $char == "l" or $char == "/" then 0.5
+                elif $char == "w" or $char == "m" then 1.5
+                else 1 end
+              );
 
-            # Определяем максимальную длину ветки (не больше 20 символов)
-            ($root | map(.head_branch | length) | max) as $max_branch_len | 
-            ($max_branch_len | if . > 20 then 20 else . end) as $fixed_branch_width |
+            . as $root |
+            ($root | map(visual_length(.name)) | max | floor) as $max_name_len |
+            ($root | map(visual_length(.head_branch)) | max | floor) as $max_branch_len |
 
-            # Форматируем вывод
             map(
               "🔹 [\(
-                  if (.name | length) > $fixed_name_width 
-                  then (.name[:($fixed_name_width - 3)] + "...")
-                  else .name
-                  end
-                )](\(.html_url))" + repeat(" "; $fixed_name_width - (.name | length) + 3) + 
-              "| 📌 " + .head_branch + repeat(" "; $fixed_branch_width - (.head_branch | length))
+                if visual_length(.name) > $max_name_len 
+                then (.name | .[:($max_name_len - 3 | floor)] + "...")
+                else .name + repeat(" "; $max_name_len - (visual_length(.name) | floor))
+              )](\(.html_url))" + 
+              " | 📌 " + .head_branch + repeat(" "; $max_branch_len - (visual_length(.head_branch) | floor))
             )
             | join("\n")
           ' <<< "$FAILURES")")
