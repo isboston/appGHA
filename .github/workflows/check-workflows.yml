@@ -33,12 +33,13 @@ jobs:
               "🔹 [\(
                   if (.name | length) > 25 
                   then (.name[:22] + "...")
-                  else (.name + repeat(" "; 25 - (.name | length)))
+                  else .name
                   end
-                )](\(.html_url)) | 📌 \(.head_branch)"
+                )](\(.html_url))" + repeat(" "; 25 - (.name | length)) + " | 📌 \(.head_branch)"
             )
             | join("\n")
           ' <<< "$FAILURES")")
+
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
