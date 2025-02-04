@@ -28,16 +28,16 @@ jobs:
         COUNT="$(jq 'length' <<< "$FAILURES")"
         HEADER="🕒 24h in ${{ github.repository }}: ❌ *${COUNT} FAILED*"
 
+        # Готовим таблицу с выравниванием
         DETAILS=$(
           jq -r '
           map(
             .name as $name
             | ($name[:30] + if ($name | length) > 30 then "..." else "" end) as $trimName
             | ($trimName | length) as $ln
-            | (30 - $ln) as $spacesNeeded
+            | (35 - $ln) as $spacesNeeded
             | (if $spacesNeeded < 0 then 0 else $spacesNeeded end) as $spaces
-            | $trimName + ("⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀")[0:$spaces]
-              + " | 📌 *" + .head_branch + "* → [🔗](\(.html_url))"
+            | "[🔹 " + $trimName + ("                                    ")[0:$spaces] + "](\(.html_url)) | 📌 *" + .head_branch + "*"
           ) | join("\n")
           ' <<< "$FAILURES"
         )
@@ -47,4 +47,5 @@ jobs:
         curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
           -H "Content-Type: application/json" \
           -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
 
