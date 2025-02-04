@@ -24,23 +24,24 @@ jobs:
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
           MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
-          "${{ github.repository }}" "$(jq -r '
-            # Функция для повторения символа n раз (используем неразрывные пробелы)
+          "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
+          "$(jq -r '
+            # Функция для повторения пробела n раз
             def repeat(s; n): if n <= 0 then "" else s + repeat(s; n - 1) end;
 
-            # Максимальная длина имени (ограничиваем до 25 символов)
+            # Определяем максимальную длину имени экшена (но не больше 25 символов)
             . as $root | 
             ($root | map(.name | length) | max) as $max_len | 
             ($max_len | if . > 25 then 25 else . end) as $fixed_width |
 
-            # Перебираем все элементы массива и форматируем
+            # Форматируем вывод
             map(
               "🔹 [\(
                   if (.name | length) > $fixed_width 
                   then (.name[:($fixed_width - 3)] + "...")
                   else .name
                   end
-                )](\(.html_url))" + repeat("\u00A0"; $fixed_width - (.name | length)) + " | 📌 \(.head_branch)"
+                )](\(.html_url))" + repeat(" "; $fixed_width - (.name | length)) + " | 📌 \(.head_branch)"
             )
             | join("\n")
           ' <<< "$FAILURES")")
