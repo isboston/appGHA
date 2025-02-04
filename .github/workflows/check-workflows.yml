@@ -25,26 +25,27 @@ jobs:
           ')
         [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-        # Формируем монолитное сообщение
         COUNT="$(jq 'length' <<< "$FAILURES")"
         HEADER="🕒 24h in ${{ github.repository }}: ❌ *${COUNT} FAILED*"
-        
-        # Делаем аккуратную таблицу с пробелами
+
+        # Готовим таблицу с выравниванием
         DETAILS=$(
           jq -r '
           map(
-            # Ограничиваем длину имени. Если имя длиннее 30 символов, добавляем "..."
-            # Затем дополняем пробелами до 30 символов, чтобы ветка начиналась в одном столбце
             .name as $name
-            | ($name[:30] + if ($name|length) > 30 then "..." else "" end) as $trimName
-            | $trimName + ( " " | ljust( (33 - ($trimName|length)); " " ) ) 
+            | ($name[:30] + if ($name | length) > 30 then "..." else "" end) as $trimName
+            | ($trimName | length) as $ln
+            | (33 - $ln) as $spacesNeeded
+            | if $spacesNeeded < 0 then 0 else $spacesNeeded end as $spaces
+            # Эта строка содержит 50 пробелов, от которых мы берём нужное кол-во
+            | $trimName
+              + ("                                                  ")[0:$spaces]
               + "| 📌 " + .head_branch
               + " → " + .html_url
           ) | join("\n")
           ' <<< "$FAILURES"
         )
-        
-        # Оборачиваем всё в блок кода с тройными бэктиками для моноширинного шрифта
+
         MESSAGE="$(printf "%s\n\`\`\`\n%s\n\`\`\`" "$HEADER" "$DETAILS")"
 
         curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
