@@ -23,10 +23,11 @@ jobs:
 
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-          MESSAGE=$(printf "🕒 24h | %s: |❌ *%s FAILED*\n%s" \
+          MESSAGE=$(printf "🕒 24h | %s |❌ *%s FAILED*\n%s" \
             "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
-            "$(jq -r '[.[] | "🔹 [\(.name[:30] + (if .name | length > 30 then "..." else "" end))](\(.html_url)) | 📌 \(.head_branch)"] | join("\n")' <<< "$FAILURES")")
+            "$(jq -r '[.[] | "🔹 [\(.name[:30] + (if .name | length > 15 then "..." else "" end))](\(.html_url)) | 📌 \(.head_branch)"] | join("\n")' <<< "$FAILURES")")
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
