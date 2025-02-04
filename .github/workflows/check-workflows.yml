@@ -2,54 +2,34 @@ name: Check Workflows
 
 on:
   schedule:
-    - cron: "55 6 * * *"
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 jobs:
   check-failed-workflows:
     runs-on: ubuntu-latest
     steps:
-    - name: Notify failed runs
-      env:
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: |
-        FAILURES=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100" | 
-          jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --arg cur "${{ github.run_id }}" '
-          [ .workflow_runs[]
-            | select(.created_at >= $start and .id != ($cur | tonumber))
-            | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
-            | select(.head_branch? and (.head_branch | test("^(main|release/.+|hotfix/.+|develop)$")))
-          ]
-          ')
-        [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
-
-        COUNT="$(jq 'length' <<< "$FAILURES")"
-        HEADER="🕒 24h in ${{ github.repository }}: ❌ *${COUNT} FAILED*"
-
-        # Формируем таблицу с фиксированной колонкой для branch
-        DETAILS=$(
-          jq -r '
-          map(
-            .name as $name
-            | ($name[:30] + if ($name | length) > 30 then "..." else "" end) as $trimName
-            | ($trimName | length) as $ln
-            | (35 - $ln) as $spacesNeeded
-            | (if $spacesNeeded < 0 then 0 else $spacesNeeded end) as $spaces
-            # Формируем имя экшена с выравниванием
-            | "[🔹 " + $trimName + ("                                    ")[0:$spaces] + "](\(.html_url))"
-            # Проверяем, есть ли branch, иначе используем `unknown`
-            | . + " | 📌 `" + (if .head_branch? then .head_branch[:15] + ("               ")[0:(15 - (.head_branch | length))] else "unknown       " end) + "`"
-          ) | join("\n")
-          ' <<< "$FAILURES"
-        )
-
-        MESSAGE="$(printf "%s\n%s" "$HEADER" "$DETAILS")"
-
-        curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-          -H "Content-Type: application/json" \
-          -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
-
-
+      - name: Notify failed runs
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          FAILURES=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100" | 
+            jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --arg cur "${{ github.run_id }}" '
+            [ .workflow_runs[] | select(.created_at >= $start and .id != ($cur | tonumber)) 
+              | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
+              | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$")) ]')
+          
+          [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
+          
+          MESSAGE="🕒 24h in ${{ github.repository }}: ❌ *$(jq 'length' <<< "$FAILURES") FAILED*\n"
+          MESSAGE+=$(jq -r '
+            .[] | 
+            "🔹 [\(.name[:30] + (if .name | length > 30 then "..." else "" end))](\(.html_url)) | 📌 " +
+            (.head_branch | if length > 15 then .[:15] else .ljust(15) end)' <<< "$FAILURES" | sed 's/  / /g')
+          
+          curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
 
