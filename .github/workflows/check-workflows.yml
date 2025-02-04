@@ -31,21 +31,25 @@ jobs:
 
             # Определяем максимальную длину имени экшена (но не больше 25 символов)
             . as $root | 
-            ($root | map(.name | length) | max) as $max_len | 
-            ($max_len | if . > 6 then 6 else . end) as $fixed_width |
+            ($root | map(.name | length) | max) as $max_name_len | 
+            ($max_name_len | if . > 25 then 25 else . end) as $fixed_name_width |
+
+            # Определяем максимальную длину ветки (не больше 20 символов)
+            ($root | map(.head_branch | length) | max) as $max_branch_len | 
+            ($max_branch_len | if . > 20 then 20 else . end) as $fixed_branch_width |
 
             # Форматируем вывод
             map(
               "🔹 [\(
-                  if (.name | length) > $fixed_width 
-                  then (.name[:($fixed_width - 3)] + "...")
+                  if (.name | length) > $fixed_name_width 
+                  then (.name[:($fixed_name_width - 3)] + "...")
                   else .name
                   end
-                )](\(.html_url))" + repeat(" "; $fixed_width - (.name | length)) + " | 📌 \(.head_branch)"
+                )](\(.html_url))" + repeat(" "; $fixed_name_width - (.name | length) + 3) + 
+              "| 📌 " + .head_branch + repeat(" "; $fixed_branch_width - (.head_branch | length))
             )
             | join("\n")
           ' <<< "$FAILURES")")
-
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
