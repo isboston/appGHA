@@ -25,20 +25,19 @@ jobs:
 
           MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
           "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
-          "$(jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" --arg cur "${{ github.run_id }}" '
-            # Функция для повторения строки n раз
+          "$(jq -r '
+            # Функция для повторения символа n раз
             def repeat(s; n): if n <= 0 then "" else s + repeat(s; n - 1) end;
-            [
-              .workflow_runs[]
-              | select(.created_at >= $start and .id != ($cur | tonumber))
-              | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
-              | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))
-              | 
-              "🔹 [\(if (.name | length) > 30 
-                    then (.name[:27] + "...")
-                    else (.name + repeat(" "; 30 - (.name | length)))
-                  end)](\(.html_url)) | 📌 \(.head_branch)"
-            ] | join("\n")
+            # Перебираем все элементы массива
+            map(
+              "🔹 [\(
+                  if (.name | length) > 30 
+                  then (.name[:27] + "...")
+                  else (.name + repeat(" "; 30 - (.name | length)))
+                  end
+                )](\(.html_url)) | 📌 \(.head_branch)"
+            )
+            | join("\n")
           ' <<< "$FAILURES")")
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
