@@ -28,27 +28,23 @@ jobs:
           "$(jq -r '
             def repeat(s; n): if n <= 0 then "" else s + repeat(s; n - 1) end;
 
-            def visual_length(s):
-              reduce (s | split(""))[] as $char (0; . +
-                if $char == "i" or $char == "l" or $char == "/" then 0.5
-                elif $char == "w" or $char == "m" then 1.5
-                else 1 end
-              );
-
             . as $root |
-            ($root | map(visual_length(.name)) | max | floor) as $max_name_len |
-            ($root | map(visual_length(.head_branch)) | max | floor) as $max_branch_len |
+            ($root | map(.name | length) | max) as $max_name_len |
+            ($max_name_len | if . > 25 then 25 else . end) as $fixed_name_width |
+            ($root | map(.head_branch | length) | max) as $max_branch_len |
+            ($max_branch_len | if . > 20 then 20 else . end) as $fixed_branch_width |
 
             map(
               "🔹 [\(
-                if visual_length(.name) > $max_name_len 
-                then (.name | .[:($max_name_len - 3 | floor)] + "...")
-                else .name + repeat(" "; $max_name_len - (visual_length(.name) | floor))
+                if (.name | length) > $fixed_name_width 
+                then (.name[:($fixed_name_width - 3)] + "...")
+                else .name + repeat(" "; $fixed_name_width - (.name | length))
               )](\(.html_url))" + 
-              " | 📌 " + .head_branch + repeat(" "; $max_branch_len - (visual_length(.head_branch) | floor))
+              " | 📌 " + .head_branch + repeat(" "; $fixed_branch_width - (.head_branch | length))
             )
             | join("\n")
           ' <<< "$FAILURES")")
+
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
