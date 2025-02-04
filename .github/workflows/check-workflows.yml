@@ -32,7 +32,7 @@ jobs:
             # Определяем максимальную длину имени экшена (но не больше 25 символов)
             . as $root | 
             ($root | map(.name | length) | max) as $max_len | 
-            ($max_len | if . > 25 then 25 else . end) as $fixed_width |
+            ($max_len | if . > 6 then 6 else . end) as $fixed_width |
 
             # Форматируем вывод
             map(
