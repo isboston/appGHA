@@ -23,28 +23,15 @@ jobs:
 
           [[ $(echo "$FAILURES" | jq 'length') -eq 0 ]] && exit 0
 
-          MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n%s" \
+          MESSAGE=$(printf "🕒 24h in %s: ❌ *%s FAILED*\n```\n%s\n```" \
           "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
-          "$(jq -r '
-            def repeat(s; n): if n <= 0 then "" else s + repeat(s; n - 1) end;
-
-            . as $root |
-            ($root | map(.name | length) | max) as $max_name_len |
-            ($max_name_len | if . > 25 then 25 else . end) as $fixed_name_width |
-            ($root | map(.head_branch | length) | max) as $max_branch_len |
-            ($max_branch_len | if . > 20 then 20 else . end) as $fixed_branch_width |
-
-            map(
-              "🔹 [\(
-                if (.name | length) > $fixed_name_width 
-                then (.name[:($fixed_name_width - 3)] + "...")
-                else .name + repeat(" "; $fixed_name_width - (.name | length))
-              )](\(.html_url))" + 
-              " | 📌 " + .head_branch + repeat(" "; $fixed_branch_width - (.head_branch | length))
+          "$(jq -r '[.[] |
+            @sprintf("🔹 [%s](%s) | 📌 %20s",
+              (.name[:30] + (if (.name | length) > 30 then "..." else "" end)),
+              .html_url,
+              .head_branch
             )
-            | join("\n")
-          ' <<< "$FAILURES")")
-
+          ] | join("\n")' <<< "$FAILURES")")
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
