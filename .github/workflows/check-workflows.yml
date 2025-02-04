@@ -28,16 +28,19 @@ jobs:
         COUNT="$(jq 'length' <<< "$FAILURES")"
         HEADER="🕒 24h in ${{ github.repository }}: ❌ *${COUNT} FAILED*"
 
-        # Готовим таблицу с выравниванием
+        # Формируем таблицу с фиксированной колонкой для branch
         DETAILS=$(
           jq -r '
           map(
             .name as $name
-            | ($name[:25] + if ($name | length) > 25 then "..." else "" end) as $trimName
+            | ($name[:30] + if ($name | length) > 30 then "..." else "" end) as $trimName
             | ($trimName | length) as $ln
-            | (30 - $ln) as $spacesNeeded
+            | (35 - $ln) as $spacesNeeded
             | (if $spacesNeeded < 0 then 0 else $spacesNeeded end) as $spaces
-            | "[🔹 " + $trimName + ("                                    ")[0:$spaces] + "](\(.html_url)) | 📌 *" + .head_branch + "*"
+            # Формируем имя экшена с выравниванием
+            | "[🔹 " + $trimName + ("                                    ")[0:$spaces] + "](\(.html_url))"
+            # Формируем фиксированную ветку (15 символов, пробелы дополняются справа)
+            | . + " | 📌 `" + (.head_branch[:15] + ("               ")[0:(15 - (.head_branch | length))]) + "`"
           ) | join("\n")
           ' <<< "$FAILURES"
         )
