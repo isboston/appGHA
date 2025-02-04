@@ -27,8 +27,9 @@ jobs:
           MESSAGE+=$(jq -r '
             .[] | 
             "\(.name[:27] + (if .name | length > 27 then "..." else "" end))|\(.html_url)|\(.head_branch)"' <<< "$FAILURES" |
-            awk -F'|' '{ printf "🔹 %-30s | 📌 %-15s\n", "[" $1 "](" $2 ")", substr($3, 1, 15) }')
+            awk -F'|' '{ printf "🔹 %-30s| 📌 %-15s\n", "[" $1 "](" $2 ")", substr($3, 1, 15) }')
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
             -d "{\"chat_id\": \"${{ secrets.TELEGRAM_CHAT_ID }}\", \"text\": \"$MESSAGE\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+
