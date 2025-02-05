@@ -4,17 +4,11 @@ set -euo pipefail
 
 # List of repos (e.g. "org/repo1,org/repo2")
 REPOSITORIES=${REPOSITORIES:-"isboston/appGHA,isboston/appGHA2"}
-GITHUB_TOKEN=${GITHUB_TOKEN:-""}
-TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-""}
-TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-""}
-
-if [[ -z "$GITHUB_TOKEN" || -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
-  echo "ERROR: GITHUB_TOKEN, TELEGRAM_BOT_TOKEN, and TELEGRAM_CHAT_ID must be set."
-  exit 1
-fi
+: "${GITHUB_TOKEN:?GITHUB_TOKEN must be set}"
+: "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN must be set}"
+: "${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID must be set}"
 
 START_TIME=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
-
 AGGREGATED_RESULTS=()
 
 IFS=',' read -ra REPO_ARRAY <<< "$REPOSITORIES"
