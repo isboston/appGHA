@@ -14,7 +14,7 @@ for REPO in "${REPO_LIST[@]}"; do
   FAILS="$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/$REPO/actions/runs?per_page=100" | \
     jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" '[.workflow_runs[]
       | select(.created_at >= $start and ((.conclusion? // "failure") | test("failure|failed|error|startup_failure")))
-      | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))]')"
+      | select(.head_branch | test("^(master|release/.+|hotfix/.+|develop)$"))]')"
 
   COUNT="$(jq length <<< "$FAILS")"
   if (( COUNT > 0 )); then
