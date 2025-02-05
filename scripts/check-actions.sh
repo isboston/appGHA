@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# This script checks failed GitHub Actions for multiple repositories over last 24 hours
-# and sends a single aggregated message to Telegram.
 
 set -euo pipefail
 
 # Comma-separated list of repos (e.g. "org/repo1,org/repo2")
-# or можно сделать массивом ниже, если удобнее
-REPOSITORIES=${REPOSITORIES:-"isboston/appGHA"}
+REPOSITORIES=${REPOSITORIES:-"isboston/appGHA,isboston/appGHA2"}
 
 # Environment variables for auth and messaging
 GITHUB_TOKEN=${GITHUB_TOKEN:-""}
@@ -37,24 +34,29 @@ for REPO in "${REPO_ARRAY[@]}"; do
   # Filter runs: created_at >= START_TIME, failed conclusion, branches main/release*/hotfix*/develop
   FAILURES=$(echo "$DATA" | jq --arg start "$START_TIME" '
     [
-      .workflow_runs[] 
-      | select(.created_at >= $start) 
-      | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure")) 
+      .workflow_runs[]
+      | select(.created_at >= $start)
+      | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))
       | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))
     ]'
   )
 
+  echo "$FAILURES" | jq .
   COUNT=$(echo "$FAILURES" | jq 'length')
+
+  echo "$FAILURES" | jq -r '.[0] | .name, .html_url, .head_branch'
+
+
   if [[ "$COUNT" -gt 0 ]]; then
     # Build short lines for each failed run
     TEXT_LINES=$(echo "$FAILURES" | jq -r '
       [
-        .[] 
-        | "🔹 [\(.name | if (.|length) > 25 then ((.|.[:25]) + \"...\") else . end)](\(.html_url)) (\(.head_branch))"
+        .[]
+        | "\u25FB [\(.name[:27] + (if (.name | length > 27) then "..." else "" end))](\(.html_url)) (\(.head_branch))"
       ] | join("\n")'
     )
 
-    AGGREGATED_RESULTS+=("🕒 *24h | ${REPO} | ❌ ${COUNT} FAILED*\n${TEXT_LINES}\n")
+    AGGREGATED_RESULTS+=("*\u274C ${COUNT} FAILED | 24h | REPO: ${REPO}*\n${TEXT_LINES}\n")
   fi
 done
 
