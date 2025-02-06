@@ -22,6 +22,7 @@ jobs:
         run: |
           # Use associative arrays to track statuses and messages
           # Use associative arrays to track statuses and messages
+            # Use associative arrays to track statuses and messages
             declare -A REPO_STATUS
             declare -A REPO_COUNT
 
@@ -33,20 +34,32 @@ jobs:
             
             RESPONSE="$(curl -s -H "Authorization: ***" "$API_URL")"
             
-            # Проверим, что поле workflow_runs действительно есть и это массив
-            IS_ARRAY=$(echo "$RESPONSE" | jq -r 'if (.workflow_runs | type) == "array" then "yes" else "no" end' 2>/dev/null)
+            # Проверяем, что поле workflow_runs действительно существует и это массив
+            IS_ARRAY=$(echo "$RESPONSE" | jq -r '
+                if (.workflow_runs | type) == "array" then "yes" else "no" end
+            ' 2>/dev/null)
+
             if [[ "$IS_ARRAY" != "yes" ]]; then
                 echo "Error or unexpected JSON from $FULL_REPO/$WORKFLOW:"
                 echo "$RESPONSE"
                 continue
             fi
             
-            # Выбираем только за последние 24 часа, нужные ветки
-            RUNS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
-                '[.workflow_runs[]
+            # Для надёжности выбираем только объекты из workflow_runs,
+            # у которых есть .created_at, .head_branch. Игнорируем всё остальное.
+            RUNS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" '
+                [
+                .workflow_runs[]
+                # Подстраховка: оставляем только объекты
+                | select(type == "object")
+                # За последние 24 часа
                 | select(.created_at >= $start)
-                | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$")) ]')"
+                # Фильтр по веткам
+                | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))
+                ]
+            ')"
 
+            # Подсчёт фейлов и успехов
             FAIL_COUNT="$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')"
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
 
@@ -55,19 +68,26 @@ jobs:
             elif (( SUCCESS_COUNT > 0 )); then
                 STATUS="✅"
             else
-                # Если нет ни фейлов, ни успехов, пропускаем
+                # Если ни фейлов, ни успехов — пропускаем
                 continue
             fi
 
-            # Экранируем подчеркивания и формируем строки
-            LINES="$(echo "$RUNS" | jq -r '[.[] |
-                "\u25FB [\(.name|gsub("_"; "\\_")|.[0:29] + (if .name|length>26 then "..." else "" end))](\(.html_url|gsub("_"; "\\_"))) (\(.head_branch|gsub("_"; "\\_")))"
-            ] | join("\n")')"
+            # Формируем строки, при этом фильтруем элементы без .name / .html_url / .head_branch,
+            # чтобы избежать ошибки Cannot index string with string "name".
+            LINES="$(echo "$RUNS" | jq -r '
+                [
+                .[] 
+                | select(.name? and .html_url? and .head_branch?)
+                | "\u25FB [\(.name|gsub("_"; "\\_")|.[0:29] + (if .name|length>26 then \"...\" else \"\" end))](\(.html_url|gsub("_"; "\\_"))) (\(.head_branch|gsub("_"; "\\_")))"
+                ] 
+                | join("\n")
+            ')"
 
             REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n$LINES\n"
             (( REPO_COUNT["$REPO"] += (FAIL_COUNT>0 ? FAIL_COUNT : 0) ))
             done <<< "$WORKFLOWS"
 
+            # Агрегируем результат
             RESULT=""
             for REPO in "${!REPO_STATUS[@]}"; do
             COUNT="${REPO_COUNT[$REPO]}"
@@ -76,6 +96,7 @@ jobs:
             RESULT+="$HEADER\n${REPO_STATUS[$REPO]}\n"
             done
 
+            # Отправляем в Telegram, если есть что
             if [[ -n "$RESULT" ]]; then
             RESULT_ESCAPED="${RESULT//\"/\\\"}"
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -85,3 +106,4 @@ jobs:
                     \"parse_mode\": \"Markdown\",
                     \"disable_web_page_preview\": true}"
             fi
+
