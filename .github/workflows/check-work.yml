@@ -23,6 +23,10 @@ jobs:
           declare -A REPO_STATUS
           declare -A REPO_COUNT
 
+          escape_telegram() {
+            echo "$1" | sed -E 's/([\_\*\[\]\(\)\~\>\#\+\-\=\|\{\}\.\!])/\\\1/g'
+          }
+
           while IFS='|' read -r REPO WORKFLOW; do
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             
@@ -52,25 +56,27 @@ jobs:
             fi
 
             LINES="$(echo "$RUNS" | jq -r '[.[] |
-              "\u25FB " + .name[:29] + (if .name|length>26 then "..." else "" end) + " \\(" + .html_url + "\\) (" + .head_branch + ")"
+              "\u25FB " + .name[:29] + (if .name|length>26 then "..." else "" end) + " (" + .html_url + ") (" + .head_branch + ")"
             ] | join("\n")')"
 
-            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n$LINES\n"
+            ESCAPED_WORKFLOW=$(escape_telegram "$WORKFLOW")
+            REPO_STATUS["$REPO"]+="$STATUS $ESCAPED_WORKFLOW\n$LINES\n"
             (( REPO_COUNT["$REPO"] += FAIL_COUNT > 0 ? FAIL_COUNT : 0 ))
           done <<< "$WORKFLOWS"
 
           RESULT=""
           for REPO in "${!REPO_STATUS[@]}"; do
             COUNT="${REPO_COUNT[$REPO]}"
-            HEADER="\U0001F680 REPO: $REPO" # 🚀
+            ESCAPED_REPO=$(escape_telegram "$REPO")
+            HEADER="\U0001F680 REPO: $ESCAPED_REPO" # 🚀
             [[ "$COUNT" -gt 0 ]] && HEADER="\u274C $COUNT FAILED | 24h | $HEADER"
             RESULT+="$HEADER\n${REPO_STATUS[$REPO]}\n"
           done
 
           if [[ -n "$RESULT" ]]; then
+            ESCAPED_RESULT=$(escape_telegram "$RESULT")
             curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
-              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"MarkdownV2\", \"disable_web_page_preview\": true}"
+              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$ESCAPED_RESULT\", \"parse_mode\": \"MarkdownV2\", \"disable_web_page_preview\": true}"
           fi
-
 
