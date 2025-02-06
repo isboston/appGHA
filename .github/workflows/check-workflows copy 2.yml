@@ -16,7 +16,7 @@ jobs:
           WORKFLOWS: |
             appGHA|ci-oci.yml
             appGHA|test2.yml
-            appGHA|check-workflows copy 2.yml
+            appGHA|check-workflows%20copy%202.yml
             appGHA2|test.yml
         run: |
           while IFS='|' read -r REPO WORKFLOW; do
