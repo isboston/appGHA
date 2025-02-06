@@ -16,15 +16,15 @@ jobs:
           WORKFLOWS: |
             appGHA|ci-oci.yml
             appGHA|test2.yml
+            appGHA|check-workflows copy 2.yml
             appGHA2|test.yml
         run: |
           while IFS='|' read -r REPO WORKFLOW; do
-            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue  # Пропускаем пустые строки
+            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             
             FULL_REPO="isboston/$REPO"
             API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
 
-            # Запрашиваем данные и проверяем, не вернёт ли API ошибку
             RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
             if echo "$RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
               FAILS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
