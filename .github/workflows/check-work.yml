@@ -20,39 +20,72 @@ jobs:
             appGHA|tg_notify.yml
             appGHA2|test.yml
         run: |
-          declare -A STATUS_COUNT REPO_REPORTS
-          while IFS='|' read -r REPO WORKFLOW; do
-            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
-            API_URL="https://api.github.com/repos/isboston/$REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
-            RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
-            
-            RUNS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
-              '[.workflow_runs[] | select(.created_at >= $start and (.head_branch | test("^(main|release/.+|hotfix/.+|develop)$")))]')"
-
-            FAILS="$(echo "$RUNS" | jq '[.[] | select((.conclusion // "failure") | test("failure|failed|error|startup_failure"))] | length')"
-            SUCCS="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
-
-            [[ "$FAILS" -gt 0 ]] && STATUS="❌" || STATUS="✅"
-            [[ "$FAILS" -eq 0 && "$SUCCS" -eq 0 ]] && continue
-
-            DETAILS="$(echo "$RUNS" | jq -r '.[] | 
-              "\u25FB [" + (.name | gsub("\\]"; "\\]"))[:29] + (if (.name | length) > 26 then "..." else "" end) + 
-              "](" + .html_url + ") (" + .head_branch + ")"' | tr '\n' ';')"
-
-            [[ -n "$DETAILS" ]] && REPO_REPORTS["$REPO"]+="$STATUS $WORKFLOW\n${DETAILS//;/\\n}\n"
-            (( STATUS_COUNT["$REPO"] += FAILS > 0 ? FAILS : 0 ))
-          done <<< "$WORKFLOWS"
-
-          RESULT=""
-          for REPO in "${!REPO_REPORTS[@]}"; do
-            HEADER="🚀 REPO: $REPO"
-            [[ "${STATUS_COUNT[$REPO]}" -gt 0 ]] && HEADER="❌ ${STATUS_COUNT[$REPO]} FAILED | 24h | $HEADER"
-            RESULT+="$HEADER\n${REPO_REPORTS[$REPO]}\n"
-          done
-
-          [[ -z "$RESULT" ]] && exit 0
+          set -euo pipefail
           
-          curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+          # Функция для простейшего HTML-экранирования (<, >, &)
+          html_escape() {
+            sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+          }
+          
+          declare -A repoReports repoFails
+          # Получаем временную метку 24 часа назад (ISO формат)
+          start=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          
+          # Перебираем строки из WORKFLOWS (формат: REPO|WORKFLOW)
+          while IFS='|' read -r repo workflow; do
+            [[ -z "$repo" || -z "$workflow" ]] && continue
+            api_url="https://api.github.com/repos/isboston/$repo/actions/workflows/$workflow/runs?per_page=30"
+            response=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "$api_url")
+            
+            # Фильтруем запуски за последние 24 часа на нужных ветках
+            runs=$(echo "$response" | jq --arg start "$start" '[.workflow_runs[]
+                      | select(.created_at >= $start and (.head_branch | test("^(main|release/.+|hotfix/.+|develop)$")))]')
+            
+            # Подсчёт неудачных и успешных запусков
+            fails=$(echo "$runs" | jq '[.[] | select((.conclusion // "failure") | test("failure|failed|error|startup_failure"))] | length')
+            succs=$(echo "$runs" | jq '[.[] | select(.conclusion == "success")] | length')
+            
+            # Если запусков за последние 24 часа нет – пропускаем workflow
+            if [[ "$fails" -eq 0 && "$succs" -eq 0 ]]; then
+              continue
+            fi
+            
+            # Определяем статус: если есть неудачные – ❌, иначе ✅
+            status="✅"
+            if [[ "$fails" -gt 0 ]]; then
+              status="❌"
+              repoFails["$repo"]=$(( repoFails["$repo"] + fails ))
+            fi
+            
+            # Формируем детали запусков в HTML:
+            # Каждая строка выглядит так: &#x25FB; <a href="URL">Название</a> (ветка)
+            details=$(echo "$runs" | jq -r '.[]
+              | "\u25FB <a href=\"" + .html_url + "\">" 
+                + (.name[0:29] + (if (.name | length) > 26 then "..." else "" end))
+                + "</a> (" + .head_branch + ")"')
+            # Объединяем строки с разделителем <br>
+            details=$(echo "$details" | paste -sd "<br>" -)
+            
+            # Добавляем в отчет информацию о workflow
+            safeWorkflow=$(echo "$workflow" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+            repoReports["$repo"]+="${status} ${safeWorkflow}<br>${details}<br><br>"
+          done <<< "$WORKFLOWS"
+          
+          # Собираем итоговое сообщение
+          result=""
+          for repo in "${!repoReports[@]}"; do
+            repoEscaped=$(echo "$repo" | html_escape)
+            header="🚀 REPO: ${repoEscaped}"
+            if [[ ${repoFails["$repo"]:-0} -gt 0 ]]; then
+              header="❌ ${repoFails["$repo"]} FAILED | 24h | ${header}"
+            fi
+            result+="<b>${header}</b><br>${repoReports[$repo]}<br>"
+          done
+          
+          [[ -z "$result" ]] && exit 0
+          
+          # Отправляем сообщение в Telegram с HTML-разметкой
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"${RESULT//\"/\\\"}\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
-
+            -d "$(jq -n --arg chat_id "$TELEGRAM_CHAT_ID" --arg text "$result" \
+                  '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_web_page_preview: true}')"
