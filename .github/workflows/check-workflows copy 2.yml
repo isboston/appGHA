@@ -23,12 +23,11 @@ jobs:
           declare -A REPO_COUNT
 
           while IFS='|' read -r REPO WORKFLOW; do
-            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue  # Пропуск пустых строк
+            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             
             FULL_REPO="isboston/$REPO"
             API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
 
-            # Запрашиваем данные и проверяем, не вернёт ли API ошибку
             RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
             if echo "$RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
               FAILS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
@@ -36,7 +35,7 @@ jobs:
                   | select(.created_at >= $start and ((.conclusion? // "failure") | test("failure|failed|error|startup_failure")))
                   | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))]')"
             else
-              echo "Ошибка API для: $FULL_REPO/$WORKFLOW"
+              echo "Erorr API: $FULL_REPO/$WORKFLOW"
               continue
             fi
 
@@ -45,17 +44,15 @@ jobs:
               LINES="$(jq -r '[.[] |
                 "\u25FB [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
               ] | join("\n")' <<< "$FAILS")"
-              
-              # Добавляем в массив по репозиторию
+
               REPO_FAILS["$REPO"]+="$LINES\n"
-              (( REPO_COUNT["$REPO"] += COUNT ))  # Увеличиваем счетчик ошибок для этого репо
+              (( REPO_COUNT["$REPO"] += COUNT ))
             fi
           done <<< "$WORKFLOWS"
 
-          # Формируем финальный вывод, группируя по репозиторию
           RESULT=""
           for REPO in "${!REPO_FAILS[@]}"; do
-            COUNT="${REPO_COUNT[$REPO]}"  # Извлекаем число ошибок
+            COUNT="${REPO_COUNT[$REPO]}"
             RESULT+="❌ $COUNT FAILED | 24h | 🚀 REPO: $REPO\n${REPO_FAILS[$REPO]}\n"
           done
 
@@ -64,3 +61,4 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
           fi
+
