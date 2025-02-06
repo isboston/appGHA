@@ -13,8 +13,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # REPOSITORIES: "isboston/appGHA,isboston/appGHA2"
-          REPOSITORIES: "ONLYOFFICE/DocSpace-buildtools,ONLYOFFICE/OneClickInstall-Workspace,ONLYOFFICE/OneClickInstall-Docs"
+          REPOSITORIES: "isboston/appGHA,isboston/appGHA2"
+          # REPOSITORIES: "ONLYOFFICE/DocSpace-buildtools,ONLYOFFICE/OneClickInstall-Workspace,ONLYOFFICE/OneClickInstall-Docs"
         run: |
           IFS=',' read -ra REPO_LIST <<< "$REPOSITORIES"
 
