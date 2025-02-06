@@ -1,8 +1,8 @@
-name: Check Workflows
+name: Workflows notify
 
 on:
-  # schedule:
-  #   - cron: "0 7 * * *"
+  schedule:
+    - cron: "0 7 * * *"
   workflow_dispatch:
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
 
           MESSAGE=$(printf "🕒 24h | %s |❌ *%s FAILED*\n%s" \
             "${{ github.repository }}" "$(jq 'length' <<< "$FAILURES")" \
-            "$(jq -r '[.[] | "🔹 [\(.name[:25] + (if .name | length > 22 then "..." else "" end))](\(.html_url)) (\(.head_branch))"] | join("\n")' <<< "$FAILURES")")
+            "$(jq -r '[.[] | "\u1F539 [\(.name[:29] + (if .name | length > 26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"] | join("\n")' <<< "$FAILURES")")
 
           curl -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
             -H "Content-Type: application/json" \
