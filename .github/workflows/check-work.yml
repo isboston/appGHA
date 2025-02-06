@@ -16,7 +16,8 @@ jobs:
           WORKFLOWS: |
             appGHA|ci-oci.yml
             appGHA|test2.yml
-            appGHA|check-workflows%20copy%202.yml
+            appGHA|check-wo.yml
+            appGHA|tg_notify.yml
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
