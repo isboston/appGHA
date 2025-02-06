@@ -18,6 +18,6 @@ jobs:
     needs: [testing]    
     steps:
       - name: Simulate failure
-      #
+      #№
         run: exit 1
 
