@@ -19,16 +19,16 @@ jobs:
             appGHA|check-workflows%20copy%202.yml
             appGHA2|test.yml
         run: |
-          run: |
           declare -A REPO_FAILS
           declare -A REPO_COUNT
 
           while IFS='|' read -r REPO WORKFLOW; do
-            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
+            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue  # Пропуск пустых строк
             
             FULL_REPO="isboston/$REPO"
             API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
 
+            # Запрашиваем данные и проверяем, не вернёт ли API ошибку
             RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
             if echo "$RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
               FAILS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
@@ -46,13 +46,17 @@ jobs:
                 "\u25FB [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
               ] | join("\n")' <<< "$FAILS")"
               
+              # Добавляем в массив по репозиторию
               REPO_FAILS["$REPO"]+="$LINES\n"
-              (( REPO_COUNT["$REPO"] += COUNT ))
+              (( REPO_COUNT["$REPO"] += COUNT ))  # Увеличиваем счетчик ошибок для этого репо
             fi
           done <<< "$WORKFLOWS"
 
+          # Формируем финальный вывод, группируя по репозиторию
+          RESULT=""
           for REPO in "${!REPO_FAILS[@]}"; do
-            RESULT+="❌ ${REPO_COUNT[$REPO]} FAILED | 24h | 🚀 REPO: $REPO\n${REPO_FAILS[$REPO]}\n"
+            COUNT="${REPO_COUNT[$REPO]}"  # Извлекаем число ошибок
+            RESULT+="❌ $COUNT FAILED | 24h | 🚀 REPO: $REPO\n${REPO_FAILS[$REPO]}\n"
           done
 
           if [[ -n "$RESULT" ]]; then
