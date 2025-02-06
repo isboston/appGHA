@@ -1,4 +1,4 @@
-name: Test notify333
+name: Workflow notify
 
 on:
   schedule:
