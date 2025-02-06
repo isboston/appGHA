@@ -17,22 +17,16 @@ jobs:
             appGHA|ci-oci.yml
             appGHA|test2.yml
             appGHA|check-workflows%20copy%202.yml
-            appGHA|tg_notify.yml
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
+          declare -A REPO_DETAILS
           declare -A REPO_COUNT
-
-          escape_telegram() {
-            echo "$1" | sed -E 's/([\_\*\[\]\(\)\~\>\#\+\-\=\|\{\}\.\!])/\\\1/g'
-          }
-
           while IFS='|' read -r REPO WORKFLOW; do
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             
             FULL_REPO="isboston/$REPO"
             API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
-
             RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
             if echo "$RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
               RUNS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
@@ -43,40 +37,30 @@ jobs:
               echo "Error API: $FULL_REPO/$WORKFLOW"
               continue
             fi
-
             FAIL_COUNT="$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')"
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
-
             if (( FAIL_COUNT > 0 )); then
-              STATUS="\u274C" # ❌
+              STATUS="❌"
             elif (( SUCCESS_COUNT > 0 )); then
-              STATUS="\u2705" # ✅
+              STATUS="✅"
             else
               continue
             fi
-
             LINES="$(echo "$RUNS" | jq -r '[.[] |
-              "\u25FB " + .name[:29] + (if .name|length>26 then "..." else "" end) + " (" + .html_url + ") (" + .head_branch + ")"
+              "\u25FB [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
             ] | join("\n")')"
-
-            ESCAPED_WORKFLOW=$(escape_telegram "$WORKFLOW")
-            REPO_STATUS["$REPO"]+="$STATUS $ESCAPED_WORKFLOW\n$LINES\n"
+            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n$LINES\n"
             (( REPO_COUNT["$REPO"] += FAIL_COUNT > 0 ? FAIL_COUNT : 0 ))
           done <<< "$WORKFLOWS"
-
           RESULT=""
           for REPO in "${!REPO_STATUS[@]}"; do
             COUNT="${REPO_COUNT[$REPO]}"
-            ESCAPED_REPO=$(escape_telegram "$REPO")
-            HEADER="\U0001F680 REPO: $ESCAPED_REPO" # 🚀
-            [[ "$COUNT" -gt 0 ]] && HEADER="\u274C $COUNT FAILED | 24h | $HEADER"
+            HEADER="🚀 REPO: $REPO"
+            [[ "$COUNT" -gt 0 ]] && HEADER="❌ $COUNT FAILED | 24h | $HEADER"
             RESULT+="$HEADER\n${REPO_STATUS[$REPO]}\n"
           done
-
           if [[ -n "$RESULT" ]]; then
-            ESCAPED_RESULT=$(escape_telegram "$RESULT")
             curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
-              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$ESCAPED_RESULT\", \"parse_mode\": \"MarkdownV2\", \"disable_web_page_preview\": true}"
+              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
           fi
-
