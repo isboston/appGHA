@@ -52,7 +52,7 @@ jobs:
             fi
 
             LINES="$(echo "$RUNS" | jq -r '[.[] |
-              "\u25FB \(.name[:29] + (if .name|length>26 then "..." else "" end)) \(\(.html_url)\) (\(.head_branch))"
+              "\u25FB " + .name[:29] + (if .name|length>26 then "..." else "" end) + " \\(" + .html_url + "\\) (" + .head_branch + ")"
             ] | join("\n")')"
 
             REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n$LINES\n"
@@ -72,4 +72,5 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"MarkdownV2\", \"disable_web_page_preview\": true}"
           fi
+
 
