@@ -76,12 +76,13 @@ jobs:
             # чтобы избежать ошибки Cannot index string with string "name".
             LINES="$(echo "$RUNS" | jq -r '
                 [
-                .[] 
+                .[]
                 | select(.name? and .html_url? and .head_branch?)
-                | "\u25FB [\(.name|gsub("_"; "\\_")|.[0:29] + (if .name|length>26 then \"...\" else \"\" end))](\(.html_url|gsub("_"; "\\_"))) (\(.head_branch|gsub("_"; "\\_")))"
+                | "\u25FB [\(.name[:29] + (if .name|length > 26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
                 ] 
                 | join("\n")
             ')"
+
 
             REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n$LINES\n"
             (( REPO_COUNT["$REPO"] += (FAIL_COUNT>0 ? FAIL_COUNT : 0) ))
