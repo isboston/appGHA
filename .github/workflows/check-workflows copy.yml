@@ -2,7 +2,7 @@ name: Test notify2222
 
 on:
   schedule:
-    - cron: "0 7 * * *"
+    - cron: "30 6 * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,26 +13,22 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          REPOSITORIES: "isboston/appGHA,isboston/appGHA2"
+          # REPOSITORIES: "isboston/appGHA,isboston/appGHA2"
+          REPOSITORIES: "ONLYOFFICE/DocSpace-buildtools,ONLYOFFICE/OneClickInstall-Workspace,ONLYOFFICE/OneClickInstall-Docs"
         run: |
           IFS=',' read -ra REPO_LIST <<< "$REPOSITORIES"
 
           for REPO in "${REPO_LIST[@]}"; do
             FAILS="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/$REPO/actions/runs?per_page=100" | \
-              jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" '
-                [.workflow_runs[]
+              jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" '[.workflow_runs[]
                   | select(.created_at >= $start and ((.conclusion? // "failure") | test("failure|failed|error|startup_failure")))
-                  | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))
-                ]
-              '
-            )"
+                  | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))]')"
 
             COUNT="$(jq length <<< "$FAILS")"
             if (( COUNT > 0 )); then
               LINES="$(jq -r '[.[] |
-                "\u1F539 [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
+                "\u25FB [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
               ] | join("\n")' <<< "$FAILS")"
-
               RESULT+="*\u274C $COUNT FAILED | 24h | REPO: $REPO*\n$LINES\n\n"
             fi
           done
