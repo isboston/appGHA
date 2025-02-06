@@ -1,9 +1,9 @@
 name: Daily Telegram Notifier
 
 on:
-  schedule:
-    # Запуск в 10:00 UTC каждый день
-    - cron: '0 10 * * *'
+  push:
+    branches:
+      - develop
 
 jobs:
   daily-notify:
