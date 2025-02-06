@@ -21,7 +21,6 @@ jobs:
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
-          declare -A REPO_DETAILS
           declare -A REPO_COUNT
 
           while IFS='|' read -r REPO WORKFLOW; do
@@ -45,15 +44,15 @@ jobs:
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
 
             if (( FAIL_COUNT > 0 )); then
-              STATUS="❌"
+              STATUS="\u274C" # ❌
             elif (( SUCCESS_COUNT > 0 )); then
-              STATUS="✅"
+              STATUS="\u2705" # ✅
             else
               continue
             fi
 
             LINES="$(echo "$RUNS" | jq -r '[.[] |
-              "\u25FB [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
+              "\u25FB \(.name[:29] + (if .name|length>26 then "..." else "" end)) \(\(.html_url)\) (\(.head_branch))"
             ] | join("\n")')"
 
             REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n$LINES\n"
@@ -63,15 +62,14 @@ jobs:
           RESULT=""
           for REPO in "${!REPO_STATUS[@]}"; do
             COUNT="${REPO_COUNT[$REPO]}"
-            HEADER="🚀 REPO: $REPO"
-            [[ "$COUNT" -gt 0 ]] && HEADER="❌ $COUNT FAILED | 24h | $HEADER"
+            HEADER="\U0001F680 REPO: $REPO" # 🚀
+            [[ "$COUNT" -gt 0 ]] && HEADER="\u274C $COUNT FAILED | 24h | $HEADER"
             RESULT+="$HEADER\n${REPO_STATUS[$REPO]}\n"
           done
 
           if [[ -n "$RESULT" ]]; then
             curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
-              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"MarkdownV2\", \"disable_web_page_preview\": true}"
           fi
-
 
