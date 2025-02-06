@@ -1,0 +1,64 @@
+name: Workflows notify
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-failed-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify failed runs
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WORKFLOWS: |
+            appGHA|ci-oci.yml
+            appGHA|test2.yml
+            appGHA|check-workflows%20copy%202.yml
+            appGHA2|test.yml
+        run: |
+          declare -A REPO_FAILS
+          declare -A REPO_COUNT
+
+          while IFS='|' read -r REPO WORKFLOW; do
+            [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
+            
+            FULL_REPO="isboston/$REPO"
+            API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
+
+            RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
+            if echo "$RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
+              FAILS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
+                '[.workflow_runs[]
+                  | select(.created_at >= $start and ((.conclusion? // "failure") | test("failure|failed|error|startup_failure")))
+                  | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))]')"
+            else
+              echo "Erorr API: $FULL_REPO/$WORKFLOW"
+              continue
+            fi
+
+            COUNT="$(jq length <<< "$FAILS")"
+            if (( COUNT > 0 )); then
+              LINES="$(jq -r '[.[] |
+                "\u25FB [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
+              ] | join("\n")' <<< "$FAILS")"
+
+              REPO_FAILS["$REPO"]+="$LINES\n"
+              (( REPO_COUNT["$REPO"] += COUNT ))
+            fi
+          done <<< "$WORKFLOWS"
+
+          RESULT=""
+          for REPO in "${!REPO_FAILS[@]}"; do
+            COUNT="${REPO_COUNT[$REPO]}"
+            RESULT+="❌ $COUNT FAILED | 24h | 🚀 REPO: $REPO\n${REPO_FAILS[$REPO]}\n"
+          done
+
+          if [[ -n "$RESULT" ]]; then
+            curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+          fi
+
