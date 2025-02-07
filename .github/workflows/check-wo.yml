@@ -21,22 +21,24 @@ jobs:
         run: |
           declare -A REPO_STATUS
 
-          # Правильное соответствие имен воркфлоу
+          # Соответствие имен воркфлоу их читабельным названиям
           declare -A WORKFLOW_NAMES=(
             ["ci-oci.yml"]="Install OneClickInstall DocSpace"
             ["test2.yml"]="Upload offline self-extracting archive"
             ["check-workflows.yml"]="Workflows notify"
-            ["test1.yml"]="Build packages"
             ["test.yml"]="Upload on S3"
           )
+
+          declare -A REPO_LIST
 
           while IFS='|' read -r REPO WORKFLOW; do
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             FULL_REPO="isboston/$REPO"
 
             WORKFLOW_NAME="${WORKFLOW_NAMES[$WORKFLOW]:-$WORKFLOW}"
+            REPO_LIST["$REPO"]=1  # Добавляем репозиторий в список
 
-            # Получение списка запусков
+            # Получаем список запусков
             RUNS_API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
             RUNS_RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$RUNS_API_URL")"
 
@@ -60,7 +62,7 @@ jobs:
           done <<< "$WORKFLOWS"
 
           RESULT=""
-          for REPO in "DocSpace-buildtools" "OneClickInstall-Workspace" "OneClickInstall-Docs"; do
+          for REPO in "${!REPO_LIST[@]}"; do
             [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="*$REPO*\n${REPO_STATUS[$REPO]}\n"
           done
 
@@ -68,5 +70,7 @@ jobs:
             curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
               -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+          else
+            echo "No workflows found in the last 24 hours."
           fi
 
