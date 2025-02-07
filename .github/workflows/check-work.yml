@@ -44,8 +44,8 @@ jobs:
               continue
             fi
 
-            FAIL_RUNS="$(echo "$RUNS" | jq -r '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | .[].name')"
-            SUCCESS_RUNS="$(echo "$RUNS" | jq -r '[.[] | select(.conclusion == "success")] | .[].name')"
+            FAIL_RUNS="$(echo "$RUNS" | jq -r '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | .[].display_title')"
+            SUCCESS_RUNS="$(echo "$RUNS" | jq -r '[.[] | select(.conclusion == "success")] | .[].display_title')"
 
             while IFS= read -r ACTION_NAME; do
               [[ -z "$ACTION_NAME" ]] && continue
