@@ -17,6 +17,7 @@ jobs:
             appGHA|ci-oci.yml
             appGHA|test2.yml
             appGHA|check-workflows.yml
+            appGHA|check-work.yml
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
@@ -26,6 +27,7 @@ jobs:
             ["ci-oci.yml"]="Install OneClickInstall DocSpace"
             ["test2.yml"]="Upload offline self-extracting archive"
             ["check-workflows.yml"]="Workflows notify"
+            ["check-work.yml"]="Workflow notify"
             ["test.yml"]="Upload on S3"
           )
 
