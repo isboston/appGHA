@@ -1,4 +1,4 @@
-name: OCI OCI
+name: Install OneClickInstall DocSpace
 
 on:
   push:

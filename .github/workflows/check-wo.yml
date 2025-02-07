@@ -22,11 +22,11 @@ jobs:
           declare -A REPO_STATUS
           declare -A REPO_COUNT
 
-          # Предзаданный список названий воркфлоу
+          # Правильное соответствие имен воркфлоу
           declare -A WORKFLOW_NAMES=(
-            ["ci-oci.yml"]="CI for OCI Images"
+            ["ci-oci.yml"]="Install OneClickInstall DocSpace"
             ["test2.yml"]="Test Second Workflow"
-            ["check-workflows.yml"]="Check Workflows"
+            ["check-workflows.yml"]="Workflows notify"
             ["test.yml"]="Build and Deploy"
           )
 
@@ -34,8 +34,8 @@ jobs:
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             FULL_REPO="isboston/$REPO"
 
-            # Берём имя воркфлоу из предзаданного списка
-            WORKFLOW_NAME="${WORKFLOW_NAMES[$WORKFLOW]:-$WORKFLOW}" # Фолбэк к имени файла, если не найдено
+            # Берём имя воркфлоу из предзаданного списка (если нет, оставляем имя файла)
+            WORKFLOW_NAME="${WORKFLOW_NAMES[$WORKFLOW]:-$WORKFLOW}"
 
             # Получаем список последних запусков
             RUNS_API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
@@ -81,5 +81,6 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
           fi
+
 
 
