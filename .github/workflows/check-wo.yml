@@ -60,7 +60,11 @@ jobs:
             STATUS="✅"
             (( FAIL_COUNT > 0 )) && STATUS="❌"
 
-            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW_NAME\n"
+            # Формируем ссылку на воркфлоу
+            WORKFLOW_URL="https://github.com/$FULL_REPO/actions/workflows/$WORKFLOW"
+            WORKFLOW_LINK="[$WORKFLOW_NAME]($WORKFLOW_URL)"
+
+            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW_LINK\n"
           done <<< "$WORKFLOWS"
 
           RESULT=""
@@ -75,4 +79,5 @@ jobs:
           else
             echo "No workflows found in the last 24 hours."
           fi
+
 
