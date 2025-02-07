@@ -51,17 +51,18 @@ jobs:
             TOTAL_COUNT=$(echo "$RUNS" | jq 'length')
             FAIL_COUNT=$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')
 
-            STATUS="⚪️"
-            (( TOTAL_COUNT > 0 )) && STATUS=$([[ $FAIL_COUNT -gt 0 ]] && echo "🔴" || echo "🟢")
+            STATUS="&#9898;"
+            (( TOTAL_COUNT > 0 )) && STATUS=$([[ $FAIL_COUNT -gt 0 ]] && echo "&#128308;" || echo "&#128994;")
 
-            REPO_STATUS["$REPO"]+="$STATUS [$WORKFLOW_NAME]($WORKFLOW_URL)\n"
+            REPO_STATUS["$REPO"]+="$STATUS <a href=\"$WORKFLOW_URL\">$WORKFLOW_NAME</a>\n"
           done <<< "$WORKFLOWS"
 
           for REPO in "${!REPO_LIST[@]}"; do
-            [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="*$REPO*\n${REPO_STATUS[$REPO]}\n"
+            [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="<b>$REPO</b>\n${REPO_STATUS[$REPO]}\n"
           done
 
           [[ -n "$RESULT" ]] && curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -H "Content-Type: application/json" \
-            -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
+            -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"HTML\", \"disable_web_page_preview\": true}"
+
 
