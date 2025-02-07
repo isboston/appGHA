@@ -40,19 +40,19 @@ jobs:
               continue
             fi
 
-            FAIL_COUNT="$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')"
-            SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
+            FAIL_RUNS="$(echo "$RUNS" | jq -r '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | .[].name')"
+            SUCCESS_RUNS="$(echo "$RUNS" | jq -r '[.[] | select(.conclusion == "success")] | .[].name')"
 
-            if (( FAIL_COUNT > 0 )); then
-              STATUS="❌"
-            elif (( SUCCESS_COUNT > 0 )); then
-              STATUS="✅"
-            else
-              continue
-            fi
+            while IFS= read -r ACTION_NAME; do
+              [[ -z "$ACTION_NAME" ]] && continue
+              REPO_STATUS["$REPO"]+="❌ $ACTION_NAME\n"
+              (( REPO_COUNT["$REPO"]++ ))
+            done <<< "$FAIL_RUNS"
 
-            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n"
-            (( REPO_COUNT["$REPO"] += FAIL_COUNT > 0 ? FAIL_COUNT : 0 ))
+            while IFS= read -r ACTION_NAME; do
+              [[ -z "$ACTION_NAME" ]] && continue
+              REPO_STATUS["$REPO"]+="✅ $ACTION_NAME\n"
+            done <<< "$SUCCESS_RUNS"
           done <<< "$WORKFLOWS"
 
           RESULT=""
@@ -70,3 +70,4 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
           fi
+
