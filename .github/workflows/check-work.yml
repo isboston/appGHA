@@ -44,8 +44,8 @@ jobs:
               continue
             fi
 
-            FAIL_RUNS="$(echo "$RUNS" | jq -r '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | .[].display_title')"
-            SUCCESS_RUNS="$(echo "$RUNS" | jq -r '[.[] | select(.conclusion == "success")] | .[].display_title')"
+            FAIL_RUNS="$(echo "$RUNS" | jq -r '[.[] | select(.conclusion? | test("failure|failed|error|startup_failure"))] | .[].name')"
+            SUCCESS_RUNS="$(echo "$RUNS" | jq -r '[.[] | select(.conclusion == "success")] | .[].name')"
 
             while IFS= read -r ACTION_NAME; do
               [[ -z "$ACTION_NAME" ]] && continue
@@ -57,6 +57,7 @@ jobs:
               [[ -z "$ACTION_NAME" ]] && continue
               REPO_STATUS["$REPO"]+="✅ $ACTION_NAME\n"
             done <<< "$SUCCESS_RUNS"
+
           done <<< "$(echo "$WORKFLOWS")"
 
           RESULT=""
@@ -74,4 +75,3 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
           fi
-
