@@ -21,8 +21,6 @@ jobs:
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
-
-          # Соответствие имен воркфлоу их читабельным названиям
           declare -A WORKFLOW_NAMES=(
             ["ci-oci.yml"]="Install OneClickInstall DocSpace"
             ["test2.yml"]="Upload offline self-extracting archive"
@@ -30,20 +28,15 @@ jobs:
             ["check-work.yml"]="Workflow notify"
             ["test.yml"]="Upload on S3"
           )
-
           declare -A REPO_LIST
-
           while IFS='|' read -r REPO WORKFLOW; do
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             FULL_REPO="isboston/$REPO"
-
             WORKFLOW_NAME="${WORKFLOW_NAMES[$WORKFLOW]:-$WORKFLOW}"
-            REPO_LIST["$REPO"]=1  # Добавляем репозиторий в список
-
+            REPO_LIST["$REPO"]=1
             # Получаем список запусков
             RUNS_API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
             RUNS_RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$RUNS_API_URL")"
-
             if echo "$RUNS_RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
               RUNS="$(echo "$RUNS_RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
                 '[.workflow_runs[]
@@ -53,34 +46,22 @@ jobs:
               echo "Error API: $FULL_REPO/$WORKFLOW"
               continue
             fi
-
             FAIL_COUNT="$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')"
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
-
             STATUS="✅"
             (( FAIL_COUNT > 0 )) && STATUS="❌"
-
-            # Экранируем URL
             WORKFLOW_URL="https://github.com/$FULL_REPO/actions/workflows/$WORKFLOW"
-            ESCAPED_URL="${WORKFLOW_URL//(/\\(}"
-            ESCAPED_URL="${ESCAPED_URL//)/\\)}"
-
-            WORKFLOW_ENTRY="$STATUS $WORKFLOW_NAME \\($ESCAPED_URL\\)"
-
-            REPO_STATUS["$REPO"]+="$WORKFLOW_ENTRY\n"
+            WORKFLOW_LINK="[$WORKFLOW_NAME]($WORKFLOW_URL)"
+            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW_LINK\n"
           done <<< "$WORKFLOWS"
-
           RESULT=""
           for REPO in "${!REPO_LIST[@]}"; do
-            ESCAPED_REPO="${REPO//_/\\_}"  # Экранируем нижние подчеркивания
-            [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="__*${ESCAPED_REPO}*__\n${REPO_STATUS[$REPO]}\n"
+            [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="*$REPO*\n${REPO_STATUS[$REPO]}\n"
           done
-
           if [[ -n "$RESULT" ]]; then
             curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
-              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"MarkdownV2\", \"disable_web_page_preview\": true}"
+              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
           else
             echo "No workflows found in the last 24 hours."
           fi
-
