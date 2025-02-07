@@ -34,7 +34,7 @@ jobs:
             FULL_REPO="isboston/$REPO"
             WORKFLOW_NAME="${WORKFLOW_NAMES[$WORKFLOW]:-$WORKFLOW}"
             REPO_LIST["$REPO"]=1
-            # Получаем список запусков
+            
             RUNS_API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
             RUNS_RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$RUNS_API_URL")"
             if echo "$RUNS_RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
@@ -46,18 +46,27 @@ jobs:
               echo "Error API: $FULL_REPO/$WORKFLOW"
               continue
             fi
+            
             FAIL_COUNT="$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')"
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
-            STATUS="✅"
-            (( FAIL_COUNT > 0 )) && STATUS="❌"
+            TOTAL_COUNT="$(echo "$RUNS" | jq 'length')"
+            
+            STATUS="⚪️"  # По умолчанию, если не было запусков
+            if (( TOTAL_COUNT > 0 )); then
+              STATUS="🟢"
+              (( FAIL_COUNT > 0 )) && STATUS="🔴"
+            fi
+            
             WORKFLOW_URL="https://github.com/$FULL_REPO/actions/workflows/$WORKFLOW"
             WORKFLOW_LINK="[$WORKFLOW_NAME]($WORKFLOW_URL)"
             REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW_LINK\n"
           done <<< "$WORKFLOWS"
+          
           RESULT=""
           for REPO in "${!REPO_LIST[@]}"; do
             [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="*$REPO*\n${REPO_STATUS[$REPO]}\n"
           done
+          
           if [[ -n "$RESULT" ]]; then
             curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
@@ -65,3 +74,4 @@ jobs:
           else
             echo "No workflows found in the last 24 hours."
           fi
+
