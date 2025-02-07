@@ -16,7 +16,7 @@ jobs:
           WORKFLOWS: |
             appGHA|ci-oci.yml
             appGHA|test2.yml
-            appGHA|check-workflows%20copy%202.yml
+            appGHA|check-workflows.yml
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
@@ -26,7 +26,7 @@ jobs:
           declare -A WORKFLOW_NAMES=(
             ["ci-oci.yml"]="CI for OCI Images"
             ["test2.yml"]="Test Second Workflow"
-            ["check-workflows%20copy%202.yml"]="Check Workflows"
+            ["check-workflows.yml"]="Check Workflows"
             ["test.yml"]="Build and Deploy"
           )
 
