@@ -20,7 +20,6 @@ jobs:
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
-          declare -A REPO_COUNT
 
           # Правильное соответствие имен воркфлоу
           declare -A WORKFLOW_NAMES=(
@@ -35,10 +34,9 @@ jobs:
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             FULL_REPO="isboston/$REPO"
 
-            # Берём имя воркфлоу из предзаданного списка (если нет, оставляем имя файла)
             WORKFLOW_NAME="${WORKFLOW_NAMES[$WORKFLOW]:-$WORKFLOW}"
 
-            # Получаем список последних запусков
+            # Получение списка запусков
             RUNS_API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
             RUNS_RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$RUNS_API_URL")"
 
@@ -55,26 +53,15 @@ jobs:
             FAIL_COUNT="$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')"
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
 
-            if (( FAIL_COUNT > 0 )); then
-              STATUS="❌"
-            elif (( SUCCESS_COUNT > 0 )); then
-              STATUS="✅"
-            else
-              continue
-            fi
+            STATUS="✅"
+            (( FAIL_COUNT > 0 )) && STATUS="❌"
 
             REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW_NAME\n"
-            (( REPO_COUNT["$REPO"] += FAIL_COUNT > 0 ? FAIL_COUNT : 0 ))
           done <<< "$WORKFLOWS"
 
           RESULT=""
-          for REPO in "${!REPO_STATUS[@]}"; do
-            HEADER="__${REPO}__"
-            COUNT="${REPO_COUNT[$REPO]}"
-            if [[ "$COUNT" -gt 0 ]]; then
-              HEADER="❌ $COUNT FAILED | 24h | $HEADER"
-            fi
-            RESULT+="$HEADER\n${REPO_STATUS[$REPO]}\n"
+          for REPO in "DocSpace-buildtools" "OneClickInstall-Workspace" "OneClickInstall-Docs"; do
+            [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="*$REPO*\n${REPO_STATUS[$REPO]}\n"
           done
 
           if [[ -n "$RESULT" ]]; then
@@ -82,6 +69,4 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
           fi
-
-
 
