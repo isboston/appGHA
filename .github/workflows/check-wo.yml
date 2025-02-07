@@ -60,16 +60,16 @@ jobs:
             STATUS="✅"
             (( FAIL_COUNT > 0 )) && STATUS="❌"
 
-            # Формируем ссылку на воркфлоу
+            # Формируем ссылку на воркфлоу в скобках
             WORKFLOW_URL="https://github.com/$FULL_REPO/actions/workflows/$WORKFLOW"
-            WORKFLOW_LINK="[$WORKFLOW_NAME]($WORKFLOW_URL)"
+            WORKFLOW_ENTRY="$STATUS $WORKFLOW_NAME ($WORKFLOW_URL)"
 
-            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW_LINK\n"
+            REPO_STATUS["$REPO"]+="$WORKFLOW_ENTRY\n"
           done <<< "$WORKFLOWS"
 
           RESULT=""
           for REPO in "${!REPO_LIST[@]}"; do
-            [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="__${REPO}__\n${REPO_STATUS[$REPO]}\n"
+            [[ -n "${REPO_STATUS[$REPO]}" ]] && RESULT+="$REPO\n$(printf '%.0s─' {1..30})\n${REPO_STATUS[$REPO]}\n"
           done
 
           if [[ -n "$RESULT" ]]; then
