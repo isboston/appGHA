@@ -12,8 +12,8 @@ jobs:
       - name: Notify failed runs
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          # TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TELEGRAM_CHAT_ID: 346039597
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          
           WORKFLOWS: |
             appGHA|ci-oci.yml
             appGHA|test2.yml
