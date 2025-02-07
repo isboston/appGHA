@@ -52,7 +52,7 @@ jobs:
             FAIL_COUNT=$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')
 
             STATUS="⚪️"
-            (( TOTAL_COUNT > 0 )) && STATUS=$([[ $FAIL_COUNT -gt 0 ]] && echo "\U0001F534" || echo "🟢")
+            (( TOTAL_COUNT > 0 )) && STATUS=$([[ $FAIL_COUNT -gt 0 ]] && echo "🔴" || echo "🟢")
 
             REPO_STATUS["$REPO"]+="$STATUS [$WORKFLOW_NAME]($WORKFLOW_URL)\n"
           done <<< "$WORKFLOWS"
