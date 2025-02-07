@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Notify failed runs
+        shell: bash
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -24,17 +25,20 @@ jobs:
           declare -A REPO_COUNT
 
           while IFS='|' read -r REPO WORKFLOW; do
+            echo "Processing: $REPO | $WORKFLOW"  # Отладка
+
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
 
             FULL_REPO="isboston/$REPO"
             API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
             RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
 
+            echo "Fetching: $API_URL"
+            echo "Response: $RESPONSE"
+
             if echo "$RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
               RUNS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
-                '[.workflow_runs[]
-                  | select(.created_at >= $start)
-                  | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))]')"
+                '[.workflow_runs[]? | select(.created_at >= $start) | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))]')"
             else
               echo "Error API: $FULL_REPO/$WORKFLOW"
               continue
@@ -53,7 +57,7 @@ jobs:
               [[ -z "$ACTION_NAME" ]] && continue
               REPO_STATUS["$REPO"]+="✅ $ACTION_NAME\n"
             done <<< "$SUCCESS_RUNS"
-          done <<< "$WORKFLOWS"
+          done <<< "$(echo "$WORKFLOWS")"
 
           RESULT=""
           for REPO in "${!REPO_STATUS[@]}"; do
