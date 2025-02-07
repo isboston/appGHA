@@ -25,9 +25,10 @@ jobs:
           # Правильное соответствие имен воркфлоу
           declare -A WORKFLOW_NAMES=(
             ["ci-oci.yml"]="Install OneClickInstall DocSpace"
-            ["test2.yml"]="Upload offline self-extracting archive "
+            ["test2.yml"]="Upload offline self-extracting archive"
             ["check-workflows.yml"]="Workflows notify"
             ["test1.yml"]="Build packages"
+            ["test.yml"]="Upload on S3"
           )
 
           while IFS='|' read -r REPO WORKFLOW; do
