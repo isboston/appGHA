@@ -21,14 +21,15 @@ jobs:
             appGHA2|test.yml
         run: |
           declare -A REPO_STATUS
-          declare -A REPO_DETAILS
           declare -A REPO_COUNT
+
           while IFS='|' read -r REPO WORKFLOW; do
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
-            
+
             FULL_REPO="isboston/$REPO"
             API_URL="https://api.github.com/repos/$FULL_REPO/actions/workflows/$WORKFLOW/runs?per_page=30"
             RESPONSE="$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" "$API_URL")"
+
             if echo "$RESPONSE" | jq -e .workflow_runs >/dev/null 2>&1; then
               RUNS="$(echo "$RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" \
                 '[.workflow_runs[]
@@ -38,8 +39,10 @@ jobs:
               echo "Error API: $FULL_REPO/$WORKFLOW"
               continue
             fi
+
             FAIL_COUNT="$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')"
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
+
             if (( FAIL_COUNT > 0 )); then
               STATUS="❌"
             elif (( SUCCESS_COUNT > 0 )); then
@@ -47,19 +50,21 @@ jobs:
             else
               continue
             fi
-            LINES="$(echo "$RUNS" | jq -r '[.[] |
-              "\u25FB [\(.name[:29] + (if .name|length>26 then "..." else "" end))](\(.html_url)) (\(.head_branch))"
-            ] | join("\n")')"
-            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n$LINES\n"
+
+            REPO_STATUS["$REPO"]+="$STATUS $WORKFLOW\n"
             (( REPO_COUNT["$REPO"] += FAIL_COUNT > 0 ? FAIL_COUNT : 0 ))
           done <<< "$WORKFLOWS"
+
           RESULT=""
           for REPO in "${!REPO_STATUS[@]}"; do
+            HEADER="__${REPO}__"
             COUNT="${REPO_COUNT[$REPO]}"
-            HEADER="🚀 REPO: $REPO"
-            [[ "$COUNT" -gt 0 ]] && HEADER="❌ $COUNT FAILED | 24h | $HEADER"
+            if [[ "$COUNT" -gt 0 ]]; then
+              HEADER="❌ $COUNT FAILED | 24h | $HEADER"
+            fi
             RESULT+="$HEADER\n${REPO_STATUS[$REPO]}\n"
           done
+
           if [[ -n "$RESULT" ]]; then
             curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
