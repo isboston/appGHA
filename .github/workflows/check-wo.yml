@@ -13,7 +13,6 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-
           WORKFLOWS: |
             appGHA|ci-oci.yml
             appGHA|test2.yml
@@ -21,7 +20,6 @@ jobs:
             appGHA|check-work.yml
             appGHA2|test.yml
         run: |
-          declare -A REPO_STATUS
           declare -A WORKFLOW_NAMES=(
             ["ci-oci.yml"]="Install OneClickInstall DocSpace"
             ["test2.yml"]="Upload offline self-extracting archive"
@@ -29,7 +27,10 @@ jobs:
             ["check-work.yml"]="Workflow notify"
             ["test.yml"]="Upload on S3"
           )
+
+          declare -A REPO_STATUS
           declare -A REPO_LIST
+
           while IFS='|' read -r REPO WORKFLOW; do
             [[ -z "$REPO" || -z "$WORKFLOW" ]] && continue
             FULL_REPO="isboston/$REPO"
@@ -53,10 +54,7 @@ jobs:
             TOTAL_COUNT="$(echo "$RUNS" | jq 'length')"
 
             STATUS="⚪️"
-            if (( TOTAL_COUNT > 0 )); then
-              STATUS="🟢"
-              (( FAIL_COUNT > 0 )) && STATUS="🔴"
-            fi
+            (( TOTAL_COUNT > 0 )) && STATUS=$([[ $FAIL_COUNT -gt 0 ]] && echo "🔴" || echo "🟢")
 
             WORKFLOW_URL="https://github.com/$FULL_REPO/actions/workflows/$WORKFLOW"
             WORKFLOW_LINK="[$WORKFLOW_NAME]($WORKFLOW_URL)"
