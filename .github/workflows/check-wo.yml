@@ -12,7 +12,8 @@ jobs:
       - name: Notify failed runs
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: 346039597
           WORKFLOWS: |
             appGHA|ci-oci.yml
             appGHA|test2.yml
@@ -51,7 +52,7 @@ jobs:
             SUCCESS_COUNT="$(echo "$RUNS" | jq '[.[] | select(.conclusion == "success")] | length')"
             TOTAL_COUNT="$(echo "$RUNS" | jq 'length')"
             
-            STATUS="⚪️"  # По умолчанию, если не было запусков
+            STATUS="⚪️"
             if (( TOTAL_COUNT > 0 )); then
               STATUS="🟢"
               (( FAIL_COUNT > 0 )) && STATUS="🔴"
