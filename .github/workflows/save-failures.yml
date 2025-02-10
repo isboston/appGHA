@@ -1,9 +1,7 @@
 name: Save Build Failures
 
 on:
-  push:
-    branches:
-      - develop
+  workflow_dispatch:
 
 jobs:
   save-failure:

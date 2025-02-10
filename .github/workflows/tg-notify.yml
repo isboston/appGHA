@@ -1,10 +1,7 @@
 name: Daily Telegram Notifier
 
 on:
-  push:
-    branches:
-      - develop
-
+  workflow_dispatch:
 jobs:
   daily-notify:
     runs-on: ubuntu-latest

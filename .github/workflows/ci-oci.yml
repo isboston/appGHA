@@ -1,9 +1,11 @@
 name: Install OneClickInstall DocSpace
 
+# on:
+#   push:
+#     branches:
+#       - develop
 on:
-  push:
-    branches:
-      - develop
+  workflow_dispatch:
 
 jobs:
   testing:
