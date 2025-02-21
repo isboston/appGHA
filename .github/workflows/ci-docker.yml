@@ -1,0 +1,85 @@
+name: Install Workspace Docker
+
+on:
+  schedule:
+    - cron: '00 21 * * 6'
+  push:
+    branches:
+      - 'main'
+  workflow_dispatch:
+
+jobs:
+  Install-Workspace-Docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Free Disk Space
+        run: |
+          sudo docker image prune --all --force
+
+      - name: Configure Docker credentials and login
+        run: |
+          AUTH_KEY=$(echo -n "${{ secrets.DOCKER_AUTH_KEY }}" | base64)
+          echo '{
+            "auths": {
+              "https://index.docker.io/v1/": {
+                "auth": "'"$AUTH_KEY"'"
+              }
+            }
+          }' > ~/.docker/config.json
+          chmod 600 ~/.docker/config.json
+
+          echo "$DOCKER_AUTH_KEY" | docker login --username "$(echo "$DOCKER_AUTH_KEY" | cut -d':' -f1)" --password-stdin
+
+      - name: Test Workspace Docker scripts
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            echo "Using official images (master branch)..."
+            sudo bash -x install.sh -skiphc true -ims false </dev/null || exit $?
+          else
+            echo "Using 4testing images (non-master branch)..."
+
+            docker pull onlyoffice/4testing-communityserver:12.7.1.1953
+            docker pull onlyoffice/4testing-controlpanel:3.5.4.541
+            docker pull onlyoffice/4testing-documentserver:8.3.1.19
+
+            sudo bash -x install.sh \
+              -skiphc true \
+              -ims false \
+              --communityimage onlyoffice/4testing-communityserver \
+              --communityversion 12.7.1.1953 \
+              --controlpanelimage onlyoffice/4testing-controlpanel \
+              --controlpanelversion 3.5.4.541 \
+              --documentimage onlyoffice/4testing-documentserver \
+              --documentversion 8.3.1.19 \
+              </dev/null || exit $?
+          fi
+          echo -n "Waiting for all containers to start..."
+          timeout 300 bash -c 'while docker ps | grep -q "starting"; do sleep 5; done' && echo "OK" || echo "container_status=timeout" >> $GITHUB_ENV
+
+      - name: Check container status
+        run: |
+          docker ps --all --format "{{.Names}}" | while read container; do
+            status=$(docker inspect --format="{{.State.Status}}" $container)
+            color=$([ "$status" == "running" ] && echo "\033[0;32m" || echo "\033[0;31m")
+            printf "%-50s ${color}%s\033[0m\n" "$container" "$status"
+            if [ "$status" != "running" ]; then
+              echo "Container $container is not running!" >> $GITHUB_ENV
+              exit 1
+            fi
+          done
+
+      - name: Print logs for crashed container
+        run: |
+          docker ps --all --format "{{.Names}}" | while read container; do
+            if [ "$(docker inspect --format="{{.State.Status}}" $container)" != "running" ]; then
+              echo "Logs for container $container:"
+              docker logs --tail 30 $container | sed "s/^/\t/g"
+            fi
+          done
+          [[ "${{ env.container_status }}" == "timeout" ]] && echo "Timeout. Some containers failed." && exit 1 || echo "All containers are running."
