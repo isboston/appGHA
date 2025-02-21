@@ -22,19 +22,23 @@ jobs:
         run: |
           sudo docker image prune --all --force
 
-      - name: Configure Docker credentials and login
-        run: |
-          AUTH_KEY=$(echo -n "${{ secrets.DOCKER_AUTH_KEY }}" | base64)
-          echo '{
-            "auths": {
-              "https://index.docker.io/v1/": {
-                "auth": "'"$AUTH_KEY"'"
-              }
-            }
-          }' > ~/.docker/config.json
-          chmod 600 ~/.docker/config.json
 
-          echo "$DOCKER_AUTH_KEY" | docker login --username "$(echo "$DOCKER_AUTH_KEY" | cut -d':' -f1)" --password-stdin
+      - name: Configure Docker credentials
+        run: |
+            rm -f ~/.docker/config.json
+            mkdir -p ~/.docker
+            echo '{
+                "auths": {
+                "https://index.docker.io/v1/": {
+                    "auth": "${{ secrets.DOCKER_AUTH_KEY }}"
+                }
+                }
+            }' > ~/.docker/config.json
+            chmod 600 ~/.docker/config.json
+            
+      - name: Docker login using decoded credentials
+        run: |
+          echo "$DOCKER_AUTH_KEY" | base64 --decode | docker login --username "$(echo "$DOCKER_AUTH_KEY" | base64 --decode | cut -d':' -f1)" --password-stdin
 
       - name: Test Workspace Docker scripts
         run: |
