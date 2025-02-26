@@ -1,4 +1,4 @@
-name: Test notify333
+name: Test action for 24h
 
 on:
   workflow_dispatch:
@@ -13,7 +13,6 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID_GROUP }}
           WORKFLOWS: |
             appGHA|ci-oci.yml|ci-oci
-            appGHA|test2.yml|test2
             appGHA|check-workflows.yml|check-workflows
             appGHA|check-work.yml|check-work
             appGHA2|test.yml|test
