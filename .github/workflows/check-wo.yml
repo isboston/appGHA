@@ -30,8 +30,11 @@ jobs:
             [[ ! $(echo "$RUNS_RESPONSE" | jq -e .workflow_runs) ]] && continue
             RUNS=$(echo "$RUNS_RESPONSE" | jq --arg start "$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)" '[.workflow_runs[]| select(.created_at >= $start)
               | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))]')
+            if [[ $(echo "$RUNS" | jq 'length') -eq 0 ]]; then
+              RUNS=$(echo "$RUNS_RESPONSE" | jq '[.workflow_runs[] | select(.head_branch | test("^(main|release/.+|hotfix/.+|develop)$"))] | if length > 0 then [.[0]] else [] end')
+            fi
             FAIL_COUNT=$(echo "$RUNS" | jq '[.[] | select((.conclusion? // "failure") | test("failure|failed|error|startup_failure"))] | length')
-            STATUS=$([[ $(echo "$RUNS" | jq 'length') -eq 0 ]] && echo "\u26AA" || ([[ $FAIL_COUNT -gt 0 ]] && echo "\uD83D\uDD34" || echo "\uD83D\uDFE2"))
+            STATUS=$([[ $(echo "$RUNS" | jq 'length') -eq 0 ]] && echo "" || ([[ $FAIL_COUNT -gt 0 ]] && echo "\uD83D\uDD34" || echo "\uD83D\uDFE2"))
             REPO_STATUS["$REPO"]+="$STATUS [$WORKFLOW_NAME](https://github.com/isboston/$REPO/actions/workflows/$WORKFLOW)\n"
           done <<< "$WORKFLOWS"
 
