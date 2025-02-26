@@ -10,7 +10,7 @@ jobs:
       - name: Notify failed runs
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID_GROUP }}
           REPOSITORIES: "isboston/appGHA,isboston/appGHA2"
         run: |
           IFS=',' read -ra REPO_LIST <<< "$REPOSITORIES"
