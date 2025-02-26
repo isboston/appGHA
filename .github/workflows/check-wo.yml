@@ -45,7 +45,7 @@ jobs:
           echo "RESULT: $RESULT"
 
           if [[ -n "$RESULT" ]]; then
-              for chat_id in ${TELEGRAM_CHAT_ID_GROUP//,/ }; do
+              for chat_id in ${TELEGRAM_CHAT_ID//,/ }; do
                   curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
                     -H "Content-Type: application/json" -d "{\"chat_id\": ${chat_id}, \"text\": \"$RESULT\", \"parse_mode\": \"Markdown\", \"disable_web_page_preview\": true}"
               done
